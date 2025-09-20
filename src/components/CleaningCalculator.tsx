@@ -126,13 +126,15 @@ const CleaningCalculator = () => {
     }, 0);
   };
 
-  const calculateMaxWorkingHours = () => {
+  const calculateMaxWorkingHours = (revenue: number) => {
     // 2 workers × 40€/hour = 80€/hour total cost
     const hourlyRate = 2 * 40;
-    const totalRevenue = sections.reduce((total, section) => {
-      return total + calculateSectionTotal(section.services, false);
-    }, 0);
-    return totalRevenue / hourlyRate;
+    return revenue / hourlyRate;
+  };
+
+  const calculateMaxWorkingDays = (revenue: number) => {
+    const hours = calculateMaxWorkingHours(revenue);
+    return hours / 8; // 8 hours per working day
   };
 
   return (
@@ -175,83 +177,61 @@ const CleaningCalculator = () => {
                         <th className="text-center p-3 font-medium">ALV 25.5%</th>
                         <th className="text-center p-3 font-medium">Asuntoja</th>
                         <th className="text-center p-3 font-medium">YHT ALV 0%</th>
-                        <th className="text-center p-3 font-medium">YHT ALV 25.5%</th>
+                        <th className="text-center p-3 font-medium">Max tuntia</th>
+                        <th className="text-center p-3 font-medium">Max päivää</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {section.services.map((service) => (
-                        <tr key={service.id} className="border-b hover:bg-muted/30 transition-colors">
-                          <td className="p-3 font-medium">{service.name}</td>
-                          <td className="p-3">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={service.priceNoVat}
-                              onChange={(e) => updateService(section.id, service.id, 'priceNoVat', parseFloat(e.target.value) || 0)}
-                              className="text-center w-24"
-                            />
-                          </td>
-                          <td className="p-3">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={service.priceWithVat}
-                              onChange={(e) => updateService(section.id, service.id, 'priceWithVat', parseFloat(e.target.value) || 0)}
-                              className="text-center w-24"
-                            />
-                          </td>
-                          <td className="p-3">
-                            <Input
-                              type="number"
-                              value={service.units}
-                              onChange={(e) => updateService(section.id, service.id, 'units', parseInt(e.target.value) || 0)}
-                              className="text-center w-20"
-                            />
-                          </td>
-                          <td className="p-3 text-center font-medium text-success">
-                            {formatCurrency(calculateTotal(service.priceNoVat, service.units))}
-                          </td>
-                          <td className="p-3 text-center font-medium text-success">
-                            {formatCurrency(calculateTotal(service.priceWithVat, service.units))}
-                          </td>
-                        </tr>
-                      ))}
-                      {/* Section Totals */}
-                      <tr className="bg-primary/5 font-semibold border-t-2 border-primary/20">
-                        <td className="p-3 text-primary">Yhteensä {section.title}</td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3 text-center text-primary">
-                          {formatCurrency(calculateSectionTotal(section.services, false))}
-                        </td>
-                        <td className="p-3 text-center text-primary">
-                          {formatCurrency(calculateSectionTotal(section.services, true))}
-                        </td>
-                      </tr>
-                    </tbody>
+                      {section.services.map((service) => {
+                        const serviceTotal = calculateTotal(service.priceNoVat, service.units);
+                        return (
+                          <tr key={service.id} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium">{service.name}</td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={service.priceNoVat}
+                                onChange={(e) => updateService(section.id, service.id, 'priceNoVat', parseFloat(e.target.value) || 0)}
+                                className="text-center w-24"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={service.priceWithVat}
+                                onChange={(e) => updateService(section.id, service.id, 'priceWithVat', parseFloat(e.target.value) || 0)}
+                                className="text-center w-24"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                value={service.units}
+                                onChange={(e) => updateService(section.id, service.id, 'units', parseInt(e.target.value) || 0)}
+                                className="text-center w-20"
+                              />
+                            </td>
+                            <td className="p-3 text-center font-medium text-success">
+                              {formatCurrency(serviceTotal)}
+                            </td>
+                            <td className="p-3 text-center font-medium text-warning">
+                              {calculateMaxWorkingHours(serviceTotal).toFixed(1)}h
+                            </td>
+                            <td className="p-3 text-center font-medium text-warning">
+                              {calculateMaxWorkingDays(serviceTotal).toFixed(1)}pv
+                            </td>
+                          </tr>
+                        );
+                      })}
+                     </tbody>
                   </table>
                 </div>
               </CardContent>
             </Card>
           ))}
 
-          {/* Maximum Working Time */}
-          <Card className="shadow-xl border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-info/5">
-            <CardContent className="p-6">
-              <div className="text-center p-6 bg-card rounded-xl shadow-md">
-                <Label className="text-lg font-semibold text-muted-foreground">
-                  Maksimiaika kannattavuusrajalla
-                </Label>
-                <div className="text-2xl font-bold text-warning mt-2">
-                  {calculateMaxWorkingHours().toFixed(1)} tuntia
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  2 työntekijää × 40€/h = 80€/h kokonaiskustannus
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
