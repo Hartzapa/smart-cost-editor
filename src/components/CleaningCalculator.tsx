@@ -126,10 +126,13 @@ const CleaningCalculator = () => {
     }, 0);
   };
 
-  const calculateGrandTotal = (withVat: boolean) => {
-    return sections.reduce((total, section) => {
-      return total + calculateSectionTotal(section.services, withVat);
+  const calculateMaxWorkingHours = () => {
+    // 2 workers × 40€/hour = 80€/hour total cost
+    const hourlyRate = 2 * 40;
+    const totalRevenue = sections.reduce((total, section) => {
+      return total + calculateSectionTotal(section.services, false);
     }, 0);
+    return totalRevenue / hourlyRate;
   };
 
   return (
@@ -233,22 +236,19 @@ const CleaningCalculator = () => {
             </Card>
           ))}
 
-          {/* Grand Total */}
+          {/* Maximum Working Time */}
           <Card className="shadow-xl border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-info/5">
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="text-center p-6 bg-card rounded-xl shadow-md">
-                  <Label className="text-lg font-semibold text-muted-foreground">Kokonaissumma ALV 0%</Label>
-                  <div className="text-3xl font-bold text-success mt-2">
-                    {formatCurrency(calculateGrandTotal(false))}
-                  </div>
+              <div className="text-center p-6 bg-card rounded-xl shadow-md">
+                <Label className="text-lg font-semibold text-muted-foreground">
+                  Maksimiaika kannattavuusrajalla
+                </Label>
+                <div className="text-2xl font-bold text-warning mt-2">
+                  {calculateMaxWorkingHours().toFixed(1)} tuntia
                 </div>
-                <div className="text-center p-6 bg-card rounded-xl shadow-md">
-                  <Label className="text-lg font-semibold text-muted-foreground">Kokonaissumma ALV 25.5%</Label>
-                  <div className="text-3xl font-bold text-success mt-2">
-                    {formatCurrency(calculateGrandTotal(true))}
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  2 työntekijää × 40€/h = 80€/h kokonaiskustannus
+                </p>
               </div>
             </CardContent>
           </Card>
