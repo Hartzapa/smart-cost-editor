@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, Home, Building, MapPin, Factory } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calculator, Home, Building, MapPin, Factory, Printer } from 'lucide-react';
 
 interface ServiceItem {
   id: string;
@@ -20,6 +21,9 @@ interface BuildingSection {
 }
 
 const CleaningCalculator = () => {
+  const [companyName, setCompanyName] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const printRef = useRef<HTMLDivElement>(null);
   const [sections, setSections] = useState<BuildingSection[]>([
     {
       id: 'rivitalo',
@@ -137,6 +141,96 @@ const CleaningCalculator = () => {
     return hours / 8; // 8 hours per working day
   };
 
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const printContent = generatePrintContent();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const generatePrintContent = () => {
+    const filteredSections = sections.map(section => ({
+      ...section,
+      services: section.services.filter(service => service.units > 0)
+    })).filter(section => section.services.length > 0);
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Puhdistuslaskuri</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .company-info { margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+          th { background-color: #f5f5f5; font-weight: bold; }
+          .section-title { background-color: #e8f4fd; font-weight: bold; text-align: left; }
+          .service-name { text-align: left; }
+          @media print { body { margin: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Puhdistuslaskuri</h1>
+          <p>Ilmanvaihtojärjestelmien puhdistuspalveluiden hintalaskuri</p>
+        </div>
+        
+        <div class="company-info">
+          <p><strong>Taloyhtiö:</strong> ${companyName || '________________'}</p>
+          <p><strong>Yhteyshenkilö:</strong> ${contactPerson || '________________'}</p>
+        </div>
+
+        ${filteredSections.map(section => `
+          <table>
+            <thead>
+              <tr>
+                <th colspan="8" class="section-title">${section.title}</th>
+              </tr>
+              <tr>
+                <th>Palvelu</th>
+                <th>ALV 0% (€)</th>
+                <th>ALV 25.5% (€)</th>
+                <th>Asuntoja</th>
+                <th>YHT ALV 0% (€)</th>
+                <th>YHT ALV 25.5% (€)</th>
+                <th>Max tuntia</th>
+                <th>Max päivää</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${section.services.map(service => {
+                const totalNoVat = calculateTotal(service.priceNoVat, service.units);
+                const totalWithVat = calculateTotal(service.priceWithVat, service.units);
+                return `
+                  <tr>
+                    <td class="service-name">${service.name}</td>
+                    <td>${service.priceNoVat.toFixed(2)}</td>
+                    <td>${service.priceWithVat.toFixed(2)}</td>
+                    <td>${service.units}</td>
+                    <td>${formatCurrency(totalNoVat)}</td>
+                    <td>${formatCurrency(totalWithVat)}</td>
+                    <td>${calculateMaxWorkingHours(totalNoVat).toFixed(1)}h</td>
+                    <td>${calculateMaxWorkingDays(totalNoVat).toFixed(1)}pv</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `).join('')}
+        
+        <p style="margin-top: 30px; font-size: 12px; color: #666;">
+          Tulostusaika: ${new Date().toLocaleString('fi-FI')}
+        </p>
+      </body>
+      </html>
+    `;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-accent/30 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -154,6 +248,42 @@ const CleaningCalculator = () => {
             Ilmanvaihtojärjestelmien puhdistuspalveluiden hintalaskuri
           </p>
         </div>
+
+        {/* Company Info */}
+        <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="companyName" className="text-sm font-medium">Taloyhtiön nimi</Label>
+                <Input
+                  id="companyName"
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Esim. Asunto Oy Kotikatu 1"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactPerson" className="text-sm font-medium">Yhteyshenkilö</Label>
+                <Input
+                  id="contactPerson"
+                  type="text"
+                  value={contactPerson}
+                  onChange={(e) => setContactPerson(e.target.value)}
+                  placeholder="Nimi ja yhteystiedot"
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={handlePrint} className="flex items-center gap-2">
+                <Printer className="h-4 w-4" />
+                Tulosta
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Calculator Sections */}
         <div className="space-y-8">
@@ -177,13 +307,15 @@ const CleaningCalculator = () => {
                         <th className="text-center p-3 font-medium">ALV 25.5%</th>
                         <th className="text-center p-3 font-medium">Asuntoja</th>
                         <th className="text-center p-3 font-medium">YHT ALV 0%</th>
+                        <th className="text-center p-3 font-medium">YHT ALV 25.5%</th>
                         <th className="text-center p-3 font-medium">Max tuntia</th>
                         <th className="text-center p-3 font-medium">Max päivää</th>
                       </tr>
                     </thead>
                     <tbody>
                       {section.services.map((service) => {
-                        const serviceTotal = calculateTotal(service.priceNoVat, service.units);
+                        const serviceTotalNoVat = calculateTotal(service.priceNoVat, service.units);
+                        const serviceTotalWithVat = calculateTotal(service.priceWithVat, service.units);
                         return (
                           <tr key={service.id} className="border-b hover:bg-muted/30 transition-colors">
                             <td className="p-3 font-medium">{service.name}</td>
@@ -214,13 +346,16 @@ const CleaningCalculator = () => {
                               />
                             </td>
                             <td className="p-3 text-center font-medium text-success">
-                              {formatCurrency(serviceTotal)}
+                              {formatCurrency(serviceTotalNoVat)}
+                            </td>
+                            <td className="p-3 text-center font-medium text-success">
+                              {formatCurrency(serviceTotalWithVat)}
                             </td>
                             <td className="p-3 text-center font-medium text-warning">
-                              {calculateMaxWorkingHours(serviceTotal).toFixed(1)}h
+                              {calculateMaxWorkingHours(serviceTotalNoVat).toFixed(1)}h
                             </td>
                             <td className="p-3 text-center font-medium text-warning">
-                              {calculateMaxWorkingDays(serviceTotal).toFixed(1)}pv
+                              {calculateMaxWorkingDays(serviceTotalNoVat).toFixed(1)}pv
                             </td>
                           </tr>
                         );
