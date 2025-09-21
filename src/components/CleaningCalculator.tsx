@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Calculator, Home, Building, MapPin, Factory, Printer, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface ServiceItem {
   id: string;
@@ -21,6 +22,7 @@ interface BuildingSection {
 }
 
 const CleaningCalculator = () => {
+  const navigate = useNavigate();
   const [companyName, setCompanyName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [address, setAddress] = useState('');
@@ -170,13 +172,7 @@ const CleaningCalculator = () => {
   };
 
   const handleQuote = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const quoteContent = generateQuoteContent();
-    printWindow.document.write(quoteContent);
-    printWindow.document.close();
-    printWindow.print();
+    navigate('/quote');
   };
 
   const generateQuoteContent = () => {
