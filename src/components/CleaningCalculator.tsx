@@ -23,6 +23,8 @@ interface BuildingSection {
 const CleaningCalculator = () => {
   const [companyName, setCompanyName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
+  const [address, setAddress] = useState('');
+  const [businessId, setBusinessId] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
   const [sections, setSections] = useState<BuildingSection[]>([
     {
@@ -141,6 +143,22 @@ const CleaningCalculator = () => {
     return hours / 8; // 8 hours per working day
   };
 
+  const handleClear = () => {
+    setCompanyName('');
+    setContactPerson('');
+    setAddress('');
+    setBusinessId('');
+    setSections(prevSections =>
+      prevSections.map(section => ({
+        ...section,
+        services: section.services.map(service => ({
+          ...service,
+          units: 0
+        }))
+      }))
+    );
+  };
+
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -182,6 +200,8 @@ const CleaningCalculator = () => {
         
         <div class="company-info">
           <p><strong>Taloyhtiö:</strong> ${companyName || '________________'}</p>
+          <p><strong>Osoite:</strong> ${address || '________________'}</p>
+          <p><strong>Y-tunnus:</strong> ${businessId || '________________'}</p>
           <p><strong>Yhteyshenkilö:</strong> ${contactPerson || '________________'}</p>
         </div>
 
@@ -265,6 +285,28 @@ const CleaningCalculator = () => {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="address" className="text-sm font-medium">Osoite</Label>
+                <Input
+                  id="address"
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Katuosoite, postinumero ja kaupunki"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="businessId" className="text-sm font-medium">Y-tunnus</Label>
+                <Input
+                  id="businessId"
+                  type="text"
+                  value={businessId}
+                  onChange={(e) => setBusinessId(e.target.value)}
+                  placeholder="1234567-8"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="contactPerson" className="text-sm font-medium">Yhteyshenkilö</Label>
                 <Input
                   id="contactPerson"
@@ -276,7 +318,10 @@ const CleaningCalculator = () => {
                 />
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-between">
+              <Button onClick={handleClear} variant="outline" className="flex items-center gap-2">
+                Tyhjennä
+              </Button>
               <Button onClick={handlePrint} className="flex items-center gap-2">
                 <Printer className="h-4 w-4" />
                 Tulosta
