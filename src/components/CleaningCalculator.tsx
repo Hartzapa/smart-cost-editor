@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Calculator, Home, Building, MapPin, Factory, Printer } from 'lucide-react';
+import { Calculator, Home, Building, MapPin, Factory, Printer, FileText } from 'lucide-react';
 
 interface ServiceItem {
   id: string;
@@ -169,6 +169,172 @@ const CleaningCalculator = () => {
     printWindow.print();
   };
 
+  const handleQuote = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const quoteContent = generateQuoteContent();
+    printWindow.document.write(quoteContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const generateQuoteContent = () => {
+    const filteredServices = sections.flatMap(section => 
+      section.services.filter(service => service.units > 0)
+        .map(service => ({
+          ...service,
+          sectionTitle: section.title,
+          totalNoVat: calculateTotal(service.priceNoVat, service.units),
+          totalWithVat: calculateTotal(service.priceWithVat, service.units)
+        }))
+    );
+
+    const grandTotalNoVat = filteredServices.reduce((sum, service) => sum + service.totalNoVat, 0);
+    const grandTotalVat = grandTotalNoVat * 0.255;
+    const grandTotalWithVat = grandTotalNoVat + grandTotalVat;
+
+    const currentDate = new Date();
+    const validUntilDate = new Date(currentDate.getTime() + (90 * 24 * 60 * 60 * 1000)); // 90 days from now
+    const quoteNumber = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Tarjous - Ilmanvaihdon puhdistus</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; font-size: 14px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .header h1 { font-size: 28px; margin: 0; color: #2563eb; }
+          .header h2 { font-size: 20px; margin: 5px 0; color: #1e40af; }
+          .quote-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+          .quote-details, .customer-info { width: 48%; }
+          .quote-details h3, .customer-info h3 { color: #1e40af; margin-bottom: 10px; }
+          .company-footer { margin-top: 40px; border-top: 2px solid #2563eb; padding-top: 20px; }
+          .company-details { display: flex; justify-content: space-between; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+          th { background-color: #f8fafc; font-weight: bold; color: #1e40af; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          .summary-table { width: 50%; margin-left: auto; margin-top: 20px; }
+          .total-row { background-color: #f1f5f9; font-weight: bold; }
+          @media print { body { margin: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>TARJOUS</h1>
+          <h2>Ilmanvaihdon puhdistuspalvelut</h2>
+        </div>
+
+        <div class="quote-info">
+          <div class="quote-details">
+            <h3>Tarjouksen tiedot</h3>
+            <p><strong>Tarjousnumero:</strong> ${quoteNumber}</p>
+            <p><strong>Tarjouksen päivä:</strong> ${currentDate.toLocaleDateString('fi-FI')}</p>
+            <p><strong>Voimassaoloaika:</strong> ${validUntilDate.toLocaleDateString('fi-FI')}</p>
+            <p><strong>Toimitusaika:</strong> Sopimuksen mukaan</p>
+            <p><strong>Maksuehto:</strong> 14 pv</p>
+          </div>
+          
+          <div class="customer-info">
+            <h3>Asiakas</h3>
+            <p><strong>${companyName || 'Taloyhtiön nimi'}</strong></p>
+            <p>${address || 'Osoite'}</p>
+            <p><strong>Y-tunnus:</strong> ${businessId || 'Y-tunnus'}</p>
+            <p><strong>Yhteyshenkilö:</strong> ${contactPerson || 'Yhteyshenkilö'}</p>
+          </div>
+        </div>
+
+        <h3 style="color: #1e40af; margin-top: 30px;">Työt</h3>
+        <ul>
+          <li>Ilmanvaihtojärjestelmien puhdistus asennettuna</li>
+          <li>Kanavien puhdistus ja huolto</li>
+          <li>Tarkastus ja dokumentointi</li>
+          <li>Jälkisäätö ja testaus</li>
+        </ul>
+
+        <h3 style="color: #1e40af; margin-top: 30px;">Tuote-erittely</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Palvelu</th>
+              <th>Kohde</th>
+              <th class="text-center">Määrä</th>
+              <th>Yksikkö</th>
+              <th class="text-right">À-hinta</th>
+              <th class="text-center">ALV-%</th>
+              <th class="text-right">Veroton summa</th>
+              <th class="text-right">Yhteensä</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredServices.map((service, index) => `
+              <tr>
+                <td>${service.name}</td>
+                <td>${service.sectionTitle}</td>
+                <td class="text-center">${service.units}</td>
+                <td>kpl</td>
+                <td class="text-right">${formatCurrency(service.priceNoVat)}</td>
+                <td class="text-center">25,5</td>
+                <td class="text-right">${formatCurrency(service.totalNoVat)}</td>
+                <td class="text-right">${formatCurrency(service.totalWithVat)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Yhteenveto</th>
+              <th class="text-right">Summa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Veroton summa (25,5%)</td>
+              <td class="text-right">${formatCurrency(grandTotalNoVat)}</td>
+            </tr>
+            <tr>
+              <td>ALV</td>
+              <td class="text-right">${formatCurrency(grandTotalVat)}</td>
+            </tr>
+            <tr class="total-row">
+              <td><strong>Yhteensä</strong></td>
+              <td class="text-right"><strong>${formatCurrency(grandTotalWithVat)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="company-footer">
+          <div class="company-details">
+            <div>
+              <h4 style="color: #1e40af; margin: 0;">Kokkolan ilmastointiasennus Oy</h4>
+              <p>Teollisuustie 2<br>
+              68100 Himanka<br>
+              0400-518233<br>
+              info@kokkolanilmastointiasennus.fi</p>
+            </div>
+            <div>
+              <p><strong>Y-tunnus:</strong> 0208917-6<br>
+              <strong>Verotunnus:</strong> FI02089176<br>
+              <strong>Myyjä:</strong> Harri Pöntiö<br>
+              www.kokkolanilmastointiasennus.fi</p>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
+          Tarjous on laadittu ${currentDate.toLocaleString('fi-FI')}
+        </p>
+      </body>
+      </html>
+    `;
+  };
+
   const generatePrintContent = () => {
     const filteredSections = sections.map(section => ({
       ...section,
@@ -322,10 +488,16 @@ const CleaningCalculator = () => {
               <Button onClick={handleClear} variant="outline" className="flex items-center gap-2">
                 Tyhjennä
               </Button>
-              <Button onClick={handlePrint} className="flex items-center gap-2">
-                <Printer className="h-4 w-4" />
-                Tulosta
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleQuote} variant="default" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Tarjous
+                </Button>
+                <Button onClick={handlePrint} variant="outline" className="flex items-center gap-2">
+                  <Printer className="h-4 w-4" />
+                  Tulosta
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
