@@ -71,33 +71,13 @@ const CleaningCalculator = () => {
     }).format(amount);
   };
 
-  const calculateMaxWorkingHours = (revenue: number, serviceName: string) => {
+  const calculateMaxWorkingHours = (revenue: number) => {
     const hourlyRate = 2 * 40; // 2 workers × 40€/hour
-    const isYlivieskaService = serviceName.toLowerCase().includes('ylivieska');
-    
-    if (isYlivieskaService) {
-      // For Ylivieska services, subtract daily allowance first, then calculate hours
-      const dailyAllowance = 48; // 48€ daily allowance for work pair
-      const dailyRevenue = revenue; // Total revenue
-      const workingDays = Math.ceil(dailyRevenue / (hourlyRate * 8 + dailyAllowance));
-      const revenueAfterAllowances = dailyRevenue - (workingDays * dailyAllowance);
-      return Math.max(0, revenueAfterAllowances / hourlyRate);
-    }
-    
     return revenue / hourlyRate;
   };
 
-  const calculateMaxWorkingDays = (revenue: number, serviceName: string) => {
-    const isYlivieskaService = serviceName.toLowerCase().includes('ylivieska');
-    
-    if (isYlivieskaService) {
-      const hourlyRate = 2 * 40; // 2 workers × 40€/hour
-      const dailyAllowance = 48; // 48€ daily allowance for work pair
-      const dailyCost = hourlyRate * 8 + dailyAllowance; // 8 hours + daily allowance
-      return revenue / dailyCost;
-    }
-    
-    const hours = calculateMaxWorkingHours(revenue, serviceName);
+  const calculateMaxWorkingDays = (revenue: number) => {
+    const hours = calculateMaxWorkingHours(revenue);
     return hours / 8; // 8 hours per working day
   };
 
@@ -246,12 +226,12 @@ const CleaningCalculator = () => {
               <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Max työtuntia</Label>
-                  <p className="text-xl font-semibold">{calculateMaxWorkingHours(totalNoVat, selectedService.name).toFixed(1)} h</p>
+                  <p className="text-xl font-semibold">{calculateMaxWorkingHours(totalNoVat).toFixed(1)} h</p>
                 </div>
                 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Max työpäivää</Label>
-                  <p className="text-xl font-semibold">{calculateMaxWorkingDays(totalNoVat, selectedService.name).toFixed(1)} pv</p>
+                  <p className="text-xl font-semibold">{calculateMaxWorkingDays(totalNoVat).toFixed(1)} pv</p>
                 </div>
               </div>
             </CardContent>
