@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Calculator, Settings as SettingsIcon } from 'lucide-react';
 import Settings from './Settings';
 
@@ -53,6 +54,7 @@ const CleaningCalculator = () => {
   const [selectedService, setSelectedService] = useState<ServiceData | null>(null);
   const [apartmentCount, setApartmentCount] = useState<number>(0);
   const [showSettings, setShowSettings] = useState(false);
+  const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('cleaning-services');
@@ -109,6 +111,28 @@ const CleaningCalculator = () => {
     return hours / 8; // 8 hours per working day
   };
 
+  const calculateFuelCosts = (serviceName: string) => {
+    const isYlivieskaService = serviceName.toLowerCase().includes('ylivieska');
+    
+    if (!isYlivieskaService || !includeFuelCosts) {
+      return 0;
+    }
+    
+    // Fuel cost calculation for Himanka to Ylivieska
+    const distanceOneWay = 65; // km (estimated distance Himanka to Ylivieska)
+    const roundTripDistance = distanceOneWay * 2;
+    const fuelConsumption = 9.5; // liters per 100km
+    const dieselPrice = 1.68; // €/liter (current estimate)
+    
+    const fuelNeeded = (roundTripDistance / 100) * fuelConsumption;
+    return fuelNeeded * dieselPrice;
+  };
+
+  const calculateTotalWithFuelCosts = (basePrice: number, serviceName: string) => {
+    const fuelCost = calculateFuelCosts(serviceName);
+    return basePrice + fuelCost;
+  };
+
   const serviceTypes: { value: ServiceType; label: string }[] = [
     { value: 'rivitalo', label: 'Rivitalo' },
     { value: 'kerrostalo', label: 'Kerrostalo' },
@@ -122,6 +146,9 @@ const CleaningCalculator = () => {
 
   const totalNoVat = selectedService ? selectedService.priceNoVat * apartmentCount : 0;
   const totalWithVat = selectedService ? selectedService.priceWithVat * apartmentCount : 0;
+  const fuelCosts = selectedService ? calculateFuelCosts(selectedService.name) : 0;
+  const totalNoVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalNoVat, selectedService.name) : 0;
+  const totalWithVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalWithVat, selectedService.name) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-accent/30 p-6">
@@ -141,8 +168,18 @@ const CleaningCalculator = () => {
           </p>
         </div>
 
-        {/* Settings Button */}
-        <div className="flex justify-end">
+        {/* Settings and Fuel Cost Toggle */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="fuel-costs"
+              checked={includeFuelCosts}
+              onCheckedChange={setIncludeFuelCosts}
+            />
+            <Label htmlFor="fuel-costs" className="text-sm font-medium">
+              Sisällytä polttoainekustannukset (Himanka → Ylivieska)
+            </Label>
+          </div>
           <Button
             onClick={() => setShowSettings(true)}
             variant="outline"
@@ -242,24 +279,43 @@ const CleaningCalculator = () => {
                 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Yhteensä (ALV 0%)</Label>
-                  <p className="text-2xl font-bold text-primary">{formatCurrency(totalNoVat)}</p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(includeFuelCosts ? totalNoVatWithFuel : totalNoVat)}</p>
                 </div>
                 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Yhteensä (ALV 25.5%)</Label>
-                  <p className="text-2xl font-bold text-primary">{formatCurrency(totalWithVat)}</p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(includeFuelCosts ? totalWithVatWithFuel : totalWithVat)}</p>
                 </div>
               </div>
+              
+              {includeFuelCosts && fuelCosts > 0 && (
+                <div className="mt-4 p-4 bg-info/10 rounded-lg border border-info/20">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Matka</Label>
+                      <p className="font-semibold">Himanka → Ylivieska (130 km)</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Kulutus</Label>
+                      <p className="font-semibold">9.5 L/100km</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Polttoainekustannus</Label>
+                      <p className="font-semibold text-info">{formatCurrency(fuelCosts)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Max työtuntia</Label>
-                  <p className="text-xl font-semibold">{calculateMaxWorkingHours(totalNoVat, selectedService.name).toFixed(1)} h</p>
+                  <p className="text-xl font-semibold">{calculateMaxWorkingHours(includeFuelCosts ? totalNoVatWithFuel : totalNoVat, selectedService.name).toFixed(1)} h</p>
                 </div>
                 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-muted-foreground">Max työpäivää</Label>
-                  <p className="text-xl font-semibold">{calculateMaxWorkingDays(totalNoVat, selectedService.name).toFixed(1)} pv</p>
+                  <p className="text-xl font-semibold">{calculateMaxWorkingDays(includeFuelCosts ? totalNoVatWithFuel : totalNoVat, selectedService.name).toFixed(1)} pv</p>
                 </div>
               </div>
             </CardContent>
