@@ -28,11 +28,20 @@ const Settings: React.FC<SettingsProps> = ({ services, onSave, onClose }) => {
     setEditableServices([...editableServices, newService]);
   };
 
+  const VAT_RATE = 0.255;
+
   const updateService = (id: string, field: keyof ServiceData, value: string | number) => {
     setEditableServices(prev =>
-      prev.map(service =>
-        service.id === id ? { ...service, [field]: value } : service
-      )
+      prev.map(service => {
+        if (service.id !== id) return service;
+        const updated = { ...service, [field]: value };
+        if (field === 'priceNoVat') {
+          updated.priceWithVat = Math.round((value as number) * (1 + VAT_RATE) * 100) / 100;
+        } else if (field === 'priceWithVat') {
+          updated.priceNoVat = Math.round((value as number) / (1 + VAT_RATE) * 100) / 100;
+        }
+        return updated;
+      })
     );
   };
 
