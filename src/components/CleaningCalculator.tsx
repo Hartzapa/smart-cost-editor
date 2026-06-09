@@ -52,7 +52,7 @@ const defaultServices: ServiceData[] = [
 const CleaningCalculator = () => {
   const [services, setServices] = useState<ServiceData[]>([]);
   const [selectedService, setSelectedService] = useState<ServiceData | null>(null);
-  const [apartmentCount, setApartmentCount] = useState<number>(0);
+  const [apartmentCount, setApartmentCount] = useState<number | ''>('');
   const [showSettings, setShowSettings] = useState(false);
   const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
 
