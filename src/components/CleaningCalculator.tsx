@@ -65,6 +65,14 @@ const CleaningCalculator = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
 
+  const [showSettings, setShowSettings] = useState(false);
+  const [showLocations, setShowLocations] = useState(false);
+  const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
+  const [locations, setLocations] = useState<LocationData[]>(defaultLocations);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('kokkola');
+
+  const selectedLocation = locations.find(l => l.id === selectedLocationId) || locations[0];
+
   useEffect(() => {
     const saved = localStorage.getItem('cleaning-services');
     if (saved) {
@@ -76,7 +84,32 @@ const CleaningCalculator = () => {
     } else {
       setServices(defaultServices);
     }
+    const savedLoc = localStorage.getItem('cleaning-locations');
+    if (savedLoc) {
+      try {
+        const parsed: LocationData[] = JSON.parse(savedLoc);
+        // Ensure built-in Kokkola & Ylivieska always present
+        const merged = [...defaultLocations];
+        parsed.forEach(l => {
+          if (!merged.find(m => m.id === l.id)) merged.push(l);
+        });
+        setLocations(merged);
+      } catch {
+        setLocations(defaultLocations);
+      }
+    }
   }, []);
+
+  const saveLocations = (newLocations: LocationData[]) => {
+    // Always keep built-in ones
+    const builtIns = defaultLocations.filter(d => !newLocations.find(n => n.id === d.id));
+    const merged = [...builtIns, ...newLocations];
+    setLocations(merged);
+    localStorage.setItem('cleaning-locations', JSON.stringify(merged));
+    if (!merged.find(l => l.id === selectedLocationId)) {
+      setSelectedLocationId('kokkola');
+    }
+  };
 
   const saveServices = (newServices: ServiceData[]) => {
     setServices(newServices);
