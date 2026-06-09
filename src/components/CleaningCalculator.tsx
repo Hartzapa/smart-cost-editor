@@ -252,7 +252,7 @@ const CleaningCalculator = () => {
                 type="number"
                 min="0"
                 value={apartmentCount}
-                onChange={(e) => setApartmentCount(parseInt(e.target.value) || 0)}
+                onChange={(e) => setApartmentCount(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
                 disabled={!selectedService}
                 placeholder="Syötä asuntojen määrä"
               />
