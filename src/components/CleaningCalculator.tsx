@@ -397,6 +397,7 @@ const CleaningCalculator = () => {
                     </div>
                   </div>
                 </div>
+              )}
 
               {locationSurchargeNoVat > 0 && (
                 <div className="mt-4 p-4 bg-accent/30 rounded-lg border border-accent">
