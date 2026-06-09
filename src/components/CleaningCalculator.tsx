@@ -145,8 +145,8 @@ const CleaningCalculator = () => {
   
   const availableServices = services.filter(service => service.type === selectedServiceType);
 
-  const totalNoVat = selectedService ? selectedService.priceNoVat * apartmentCount : 0;
-  const totalWithVat = selectedService ? selectedService.priceWithVat * apartmentCount : 0;
+  const totalNoVat = selectedService ? selectedService.priceNoVat * apartmentCountNum : 0;
+  const totalWithVat = selectedService ? selectedService.priceWithVat * apartmentCountNum : 0;
   const fuelCosts = selectedService ? calculateFuelCosts(selectedService.name) : 0;
   const totalNoVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalNoVat, selectedService.name) : 0;
   const totalWithVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalWithVat, selectedService.name) : 0;
@@ -261,7 +261,7 @@ const CleaningCalculator = () => {
         </Card>
 
         {/* Results */}
-        {selectedService && apartmentCount > 0 && (
+        {selectedService && apartmentCountNum > 0 && (
           <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>Hintatiedot</CardTitle>
