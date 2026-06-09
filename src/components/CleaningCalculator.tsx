@@ -5,8 +5,16 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Calculator, Settings as SettingsIcon } from 'lucide-react';
+import { Calculator, Settings as SettingsIcon, MapPin } from 'lucide-react';
 import Settings from './Settings';
+import LocationManager, { LocationData } from './LocationManager';
+
+const VAT_RATE = 0.255;
+
+const defaultLocations: LocationData[] = [
+  { id: 'kokkola', name: 'Kokkola', surchargePerUnit: 0, builtIn: true },
+  { id: 'ylivieska', name: 'Ylivieska', surchargePerUnit: 0, isYlivieska: true, builtIn: true },
+];
 
 export type ServiceType = 'rivitalo' | 'kerrostalo' | 'omakotitalo' | 'muut-palvelut';
 
