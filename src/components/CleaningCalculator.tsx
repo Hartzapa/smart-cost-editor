@@ -5,8 +5,16 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Calculator, Settings as SettingsIcon } from 'lucide-react';
+import { Calculator, Settings as SettingsIcon, MapPin } from 'lucide-react';
 import Settings from './Settings';
+import LocationManager, { LocationData } from './LocationManager';
+
+const VAT_RATE = 0.255;
+
+const defaultLocations: LocationData[] = [
+  { id: 'kokkola', name: 'Kokkola', surchargePerUnit: 0, builtIn: true },
+  { id: 'ylivieska', name: 'Ylivieska', surchargePerUnit: 0, isYlivieska: true, builtIn: true },
+];
 
 export type ServiceType = 'rivitalo' | 'kerrostalo' | 'omakotitalo' | 'muut-palvelut';
 
@@ -55,7 +63,12 @@ const CleaningCalculator = () => {
   const [apartmentCount, setApartmentCount] = useState<number | ''>('');
   const apartmentCountNum = typeof apartmentCount === 'number' ? apartmentCount : 0;
   const [showSettings, setShowSettings] = useState(false);
+  const [showLocations, setShowLocations] = useState(false);
   const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
+  const [locations, setLocations] = useState<LocationData[]>(defaultLocations);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('kokkola');
+
+  const selectedLocation = locations.find(l => l.id === selectedLocationId) || locations[0];
 
   useEffect(() => {
     const saved = localStorage.getItem('cleaning-services');
@@ -68,7 +81,32 @@ const CleaningCalculator = () => {
     } else {
       setServices(defaultServices);
     }
+    const savedLoc = localStorage.getItem('cleaning-locations');
+    if (savedLoc) {
+      try {
+        const parsed: LocationData[] = JSON.parse(savedLoc);
+        // Ensure built-in Kokkola & Ylivieska always present
+        const merged = [...defaultLocations];
+        parsed.forEach(l => {
+          if (!merged.find(m => m.id === l.id)) merged.push(l);
+        });
+        setLocations(merged);
+      } catch {
+        setLocations(defaultLocations);
+      }
+    }
   }, []);
+
+  const saveLocations = (newLocations: LocationData[]) => {
+    // Always keep built-in ones
+    const builtIns = defaultLocations.filter(d => !newLocations.find(n => n.id === d.id));
+    const merged = [...builtIns, ...newLocations];
+    setLocations(merged);
+    localStorage.setItem('cleaning-locations', JSON.stringify(merged));
+    if (!merged.find(l => l.id === selectedLocationId)) {
+      setSelectedLocationId('kokkola');
+    }
+  };
 
   const saveServices = (newServices: ServiceData[]) => {
     setServices(newServices);
@@ -142,11 +180,26 @@ const CleaningCalculator = () => {
   ];
 
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('');
-  
-  const availableServices = services.filter(service => service.type === selectedServiceType);
 
-  const totalNoVat = selectedService ? selectedService.priceNoVat * apartmentCountNum : 0;
-  const totalWithVat = selectedService ? selectedService.priceWithVat * apartmentCountNum : 0;
+  // Filter services by selected location:
+  // - Ylivieska: services whose name contains "ylivieska"
+  // - Other locations (Kokkola/custom): services whose name does NOT contain "ylivieska"
+  const availableServices = services.filter(service => {
+    if (service.type !== selectedServiceType) return false;
+    const hasYlivieska = service.name.toLowerCase().includes('ylivieska');
+    return selectedLocation?.isYlivieska ? hasYlivieska : !hasYlivieska;
+  });
+
+  // Location surcharge applies per apartment, only for non-built-in (custom) locations.
+  const locationSurchargeNoVat = selectedLocation && !selectedLocation.builtIn
+    ? selectedLocation.surchargePerUnit * apartmentCountNum
+    : 0;
+  const locationSurchargeWithVat = locationSurchargeNoVat * (1 + VAT_RATE);
+
+  const baseTotalNoVat = selectedService ? selectedService.priceNoVat * apartmentCountNum : 0;
+  const baseTotalWithVat = selectedService ? selectedService.priceWithVat * apartmentCountNum : 0;
+  const totalNoVat = baseTotalNoVat + locationSurchargeNoVat;
+  const totalWithVat = baseTotalWithVat + locationSurchargeWithVat;
   const fuelCosts = selectedService ? calculateFuelCosts(selectedService.name) : 0;
   const totalNoVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalNoVat, selectedService.name) : 0;
   const totalWithVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalWithVat, selectedService.name) : 0;
@@ -170,7 +223,7 @@ const CleaningCalculator = () => {
         </div>
 
         {/* Settings and Fuel Cost Toggle */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4 flex-wrap">
           <div className="flex items-center space-x-2">
             <Switch
               id="fuel-costs"
@@ -181,14 +234,24 @@ const CleaningCalculator = () => {
               Sisällytä polttoainekustannukset (Himanka → Ylivieska)
             </Label>
           </div>
-          <Button
-            onClick={() => setShowSettings(true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <SettingsIcon className="h-4 w-4" />
-            Asetukset
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowLocations(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <MapPin className="h-4 w-4" />
+              Sijainnit
+            </Button>
+            <Button
+              onClick={() => setShowSettings(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <SettingsIcon className="h-4 w-4" />
+              Asetukset
+            </Button>
+          </div>
         </div>
 
         {/* Service Selection */}
@@ -197,6 +260,34 @@ const CleaningCalculator = () => {
             <CardTitle>Valitse palvelu</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Location Selector */}
+            <div className="space-y-2">
+              <Label htmlFor="location" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Sijainti
+              </Label>
+              <Select
+                value={selectedLocationId}
+                onValueChange={(value) => {
+                  setSelectedLocationId(value);
+                  setSelectedService(null);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Valitse sijainti" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map(loc => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                      {loc.id === 'kokkola' && ' (vertailuhinta)'}
+                      {!loc.builtIn && loc.surchargePerUnit > 0 && ` (+${loc.surchargePerUnit.toFixed(2)} €/asunto)`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Service Type Selection */}
               <div className="space-y-2">
@@ -307,6 +398,26 @@ const CleaningCalculator = () => {
                   </div>
                 </div>
               )}
+
+              {locationSurchargeNoVat > 0 && (
+                <div className="mt-4 p-4 bg-accent/30 rounded-lg border border-accent">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Sijainti</Label>
+                      <p className="font-semibold">{selectedLocation?.name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Lisähinta / asunto</Label>
+                      <p className="font-semibold">{formatCurrency(selectedLocation?.surchargePerUnit || 0)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Sijaintilisä yhteensä (ALV 0%)</Label>
+                      <p className="font-semibold">{formatCurrency(locationSurchargeNoVat)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               
               <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -329,6 +440,15 @@ const CleaningCalculator = () => {
             services={services}
             onSave={saveServices}
             onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        {/* Location Manager Modal */}
+        {showLocations && (
+          <LocationManager
+            locations={locations}
+            onSave={saveLocations}
+            onClose={() => setShowLocations(false)}
           />
         )}
       </div>
