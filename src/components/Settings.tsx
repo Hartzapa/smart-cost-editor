@@ -68,82 +68,99 @@ const Settings: React.FC<SettingsProps> = ({ services, onSave, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <SettingsIcon className="h-5 w-5" />
-            <CardTitle>Palvelujen ja hintojen hallinta</CardTitle>
+      <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-xl overflow-hidden border border-slate-200 flex flex-col">
+        {/* Header */}
+        <div className="px-6 md:px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <SettingsIcon className="h-5 w-5 text-slate-600" />
+            </div>
+            <h1 className="text-lg md:text-xl font-semibold text-slate-800">Palvelujen ja hintojen hallinta</h1>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleSave} className="flex items-center gap-2">
+            <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
               <Save className="h-4 w-4" />
               Tallenna
             </Button>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={onClose} className="border-slate-200 text-slate-600 hover:bg-slate-50">
               Sulje
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-10">
           {groupedServices.map(group => (
-            <div key={group.value} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">{group.label}</h3>
-                <Button
-                  size="sm"
+            <section key={group.value}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-slate-900">{group.label}</h2>
+                <button
                   onClick={() => addService(group.value)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   Lisää palvelu
-                </Button>
+                </button>
               </div>
-              
-              <div className="grid gap-4">
-                {group.services.map(service => (
-                  <div key={service.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
-                    <div>
-                      <Label>Palvelun nimi</Label>
-                      <Input
-                        value={service.name}
-                        onChange={(e) => updateService(service.id, 'name', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Hinta (ALV 0%)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={service.priceNoVat}
-                        onChange={(e) => updateService(service.id, 'priceNoVat', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Hinta (ALV 25.5%)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={service.priceWithVat}
-                        onChange={(e) => updateService(service.id, 'priceWithVat', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteService(service.id)}
-                        className="w-full"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+
+              {group.services.length > 0 && (
+                <div className="w-full">
+                  <div className="hidden md:grid grid-cols-[1fr_130px_130px_48px] gap-4 px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <div>Palvelun nimi</div>
+                    <div>ALV 0%</div>
+                    <div>ALV 25.5%</div>
+                    <div></div>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  <div className="space-y-2 mt-1">
+                    {group.services.map(service => (
+                      <div
+                        key={service.id}
+                        className="grid grid-cols-1 md:grid-cols-[1fr_130px_130px_48px] gap-3 md:gap-4 items-center p-2 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 group"
+                      >
+                        <Input
+                          value={service.name}
+                          onChange={(e) => updateService(service.id, 'name', e.target.value)}
+                          className="px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus-visible:ring-2 focus-visible:ring-blue-500"
+                          placeholder="Palvelun nimi"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={service.priceNoVat}
+                          onChange={(e) => updateService(service.id, 'priceNoVat', parseFloat(e.target.value) || 0)}
+                          className="px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus-visible:ring-2 focus-visible:ring-blue-500"
+                          placeholder="ALV 0%"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={service.priceWithVat}
+                          onChange={(e) => updateService(service.id, 'priceWithVat', parseFloat(e.target.value) || 0)}
+                          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-600"
+                          placeholder="ALV 25.5%"
+                        />
+                        <button
+                          onClick={() => deleteService(service.id)}
+                          aria-label="Poista palvelu"
+                          className="flex items-center justify-center p-2 text-slate-400 hover:text-red-500 transition-colors justify-self-end md:justify-self-auto"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Footer info */}
+        <div className="px-6 md:px-8 py-4 bg-slate-50 border-t border-slate-100 text-center">
+          <p className="text-xs text-slate-500">ALV 25.5% lasketaan automaattisesti ALV 0% hinnan perusteella (ja päinvastoin).</p>
+        </div>
+      </div>
     </div>
   );
 };
