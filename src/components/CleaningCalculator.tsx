@@ -223,7 +223,7 @@ const CleaningCalculator = () => {
         </div>
 
         {/* Settings and Fuel Cost Toggle */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-4 flex-wrap">
           <div className="flex items-center space-x-2">
             <Switch
               id="fuel-costs"
@@ -234,14 +234,24 @@ const CleaningCalculator = () => {
               Sisällytä polttoainekustannukset (Himanka → Ylivieska)
             </Label>
           </div>
-          <Button
-            onClick={() => setShowSettings(true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <SettingsIcon className="h-4 w-4" />
-            Asetukset
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowLocations(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <MapPin className="h-4 w-4" />
+              Sijainnit
+            </Button>
+            <Button
+              onClick={() => setShowSettings(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <SettingsIcon className="h-4 w-4" />
+              Asetukset
+            </Button>
+          </div>
         </div>
 
         {/* Service Selection */}
@@ -250,6 +260,34 @@ const CleaningCalculator = () => {
             <CardTitle>Valitse palvelu</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Location Selector */}
+            <div className="space-y-2">
+              <Label htmlFor="location" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Sijainti
+              </Label>
+              <Select
+                value={selectedLocationId}
+                onValueChange={(value) => {
+                  setSelectedLocationId(value);
+                  setSelectedService(null);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Valitse sijainti" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map(loc => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                      {loc.id === 'kokkola' && ' (vertailuhinta)'}
+                      {!loc.builtIn && loc.surchargePerUnit > 0 && ` (+${loc.surchargePerUnit.toFixed(2)} €/asunto)`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Service Type Selection */}
               <div className="space-y-2">
