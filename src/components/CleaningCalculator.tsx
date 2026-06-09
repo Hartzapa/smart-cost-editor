@@ -63,9 +63,6 @@ const CleaningCalculator = () => {
   const [apartmentCount, setApartmentCount] = useState<number | ''>('');
   const apartmentCountNum = typeof apartmentCount === 'number' ? apartmentCount : 0;
   const [showSettings, setShowSettings] = useState(false);
-  const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
-
-  const [showSettings, setShowSettings] = useState(false);
   const [showLocations, setShowLocations] = useState(false);
   const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
   const [locations, setLocations] = useState<LocationData[]>(defaultLocations);
