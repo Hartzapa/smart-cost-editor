@@ -442,6 +442,15 @@ const CleaningCalculator = () => {
             onClose={() => setShowSettings(false)}
           />
         )}
+
+        {/* Location Manager Modal */}
+        {showLocations && (
+          <LocationManager
+            locations={locations}
+            onSave={saveLocations}
+            onClose={() => setShowLocations(false)}
+          />
+        )}
       </div>
     </div>
   );
