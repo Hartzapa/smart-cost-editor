@@ -397,7 +397,26 @@ const CleaningCalculator = () => {
                     </div>
                   </div>
                 </div>
+
+              {locationSurchargeNoVat > 0 && (
+                <div className="mt-4 p-4 bg-accent/30 rounded-lg border border-accent">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Sijainti</Label>
+                      <p className="font-semibold">{selectedLocation?.name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Lisähinta / asunto</Label>
+                      <p className="font-semibold">{formatCurrency(selectedLocation?.surchargePerUnit || 0)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Sijaintilisä yhteensä (ALV 0%)</Label>
+                      <p className="font-semibold">{formatCurrency(locationSurchargeNoVat)}</p>
+                    </div>
+                  </div>
+                </div>
               )}
+
               
               <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
