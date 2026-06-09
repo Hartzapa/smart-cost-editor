@@ -180,11 +180,26 @@ const CleaningCalculator = () => {
   ];
 
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | ''>('');
-  
-  const availableServices = services.filter(service => service.type === selectedServiceType);
 
-  const totalNoVat = selectedService ? selectedService.priceNoVat * apartmentCountNum : 0;
-  const totalWithVat = selectedService ? selectedService.priceWithVat * apartmentCountNum : 0;
+  // Filter services by selected location:
+  // - Ylivieska: services whose name contains "ylivieska"
+  // - Other locations (Kokkola/custom): services whose name does NOT contain "ylivieska"
+  const availableServices = services.filter(service => {
+    if (service.type !== selectedServiceType) return false;
+    const hasYlivieska = service.name.toLowerCase().includes('ylivieska');
+    return selectedLocation?.isYlivieska ? hasYlivieska : !hasYlivieska;
+  });
+
+  // Location surcharge applies per apartment, only for non-built-in (custom) locations.
+  const locationSurchargeNoVat = selectedLocation && !selectedLocation.builtIn
+    ? selectedLocation.surchargePerUnit * apartmentCountNum
+    : 0;
+  const locationSurchargeWithVat = locationSurchargeNoVat * (1 + VAT_RATE);
+
+  const baseTotalNoVat = selectedService ? selectedService.priceNoVat * apartmentCountNum : 0;
+  const baseTotalWithVat = selectedService ? selectedService.priceWithVat * apartmentCountNum : 0;
+  const totalNoVat = baseTotalNoVat + locationSurchargeNoVat;
+  const totalWithVat = baseTotalWithVat + locationSurchargeWithVat;
   const fuelCosts = selectedService ? calculateFuelCosts(selectedService.name) : 0;
   const totalNoVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalNoVat, selectedService.name) : 0;
   const totalWithVatWithFuel = selectedService ? calculateTotalWithFuelCosts(totalWithVat, selectedService.name) : 0;
