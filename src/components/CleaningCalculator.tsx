@@ -237,8 +237,7 @@ const CleaningCalculator = () => {
           <div className="flex gap-2">
             <Button
               onClick={() => setShowLocations(true)}
-              variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
             >
               <MapPin className="h-4 w-4" />
               Sijainnit
