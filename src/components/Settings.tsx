@@ -55,7 +55,7 @@ const Settings: React.FC<SettingsProps> = ({ services, onSave, onClose }) => {
   };
 
   const serviceTypes: { value: ServiceType; label: string }[] = [
-    { value: 'rivitalo', label: 'Rivitalo' },
+    { value: 'rivitalo', label: 'Rivitalo / luhtitalo' },
     { value: 'kerrostalo', label: 'Kerrostalo' },
     { value: 'omakotitalo', label: 'Omakotitalo' },
     { value: 'muut-palvelut', label: 'Muut palvelut' }

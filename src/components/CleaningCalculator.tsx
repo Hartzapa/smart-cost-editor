@@ -5,12 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Calculator, Settings as SettingsIcon, MapPin } from 'lucide-react';
+import { Calculator, Settings as SettingsIcon, MapPin, Plus } from 'lucide-react';
 import Settings from './Settings';
 import LocationManager, { LocationData } from './LocationManager';
 import PriceListSync from './PriceListSync';
 import { consumeShareLink, LOCATIONS_KEY, SERVICES_KEY, type PriceListExport } from '@/lib/priceListSync';
 import { toast } from 'sonner';
+import OfferBasket from './OfferBasket';
+import { loadBasket, saveBasket, round2, type BasketItem } from '@/lib/offerBasket';
 
 const VAT_RATE = 0.255;
 
@@ -70,6 +72,8 @@ const CleaningCalculator = () => {
   const [includeFuelCosts, setIncludeFuelCosts] = useState(false);
   const [locations, setLocations] = useState<LocationData[]>(defaultLocations);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('kokkola');
+  const [basket, setBasket] = useState<BasketItem[]>(() => loadBasket());
+  const [targetName, setTargetName] = useState('');
 
   const selectedLocation = locations.find(l => l.id === selectedLocationId) || locations[0];
 
@@ -145,6 +149,32 @@ const CleaningCalculator = () => {
     setSelectedService(null);
   };
 
+  const updateBasket = (items: BasketItem[]) => {
+    setBasket(items);
+    saveBasket(items);
+  };
+
+  const addToBasket = () => {
+    if (!selectedService || apartmentCountNum <= 0) return;
+    const typeLabel = serviceTypes.find(t => t.value === selectedService.type)?.label ?? selectedService.type;
+    const target = targetName.trim() || `Kohde ${basket.length + 1}`;
+    const item: BasketItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      target,
+      locationName: selectedLocation?.name ?? '',
+      serviceTypeLabel: typeLabel,
+      serviceName: selectedService.name,
+      apartments: apartmentCountNum,
+      unitNoVat: selectedService.priceNoVat,
+      surchargePerUnit: selectedLocation && !selectedLocation.builtIn ? selectedLocation.surchargePerUnit : 0,
+      totalNoVat: round2(totalNoVat),
+      maxHours: round2(calculateMaxWorkingHours(totalNoVat, selectedService.name)),
+    };
+    updateBasket([...basket, item]);
+    setTargetName('');
+    toast.success(`${target} lisätty tarjouskoriin.`);
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fi-FI', {
       style: 'currency',
@@ -205,7 +235,7 @@ const CleaningCalculator = () => {
   };
 
   const serviceTypes: { value: ServiceType; label: string }[] = [
-    { value: 'rivitalo', label: 'Rivitalo' },
+    { value: 'rivitalo', label: 'Rivitalo / luhtitalo' },
     { value: 'kerrostalo', label: 'Kerrostalo' },
     { value: 'omakotitalo', label: 'Omakotitalo' },
     { value: 'muut-palvelut', label: 'Muut palvelut' }
@@ -467,8 +497,31 @@ const CleaningCalculator = () => {
                   <p className="text-xl font-semibold">{calculateMaxWorkingDays(includeFuelCosts ? totalNoVatWithFuel : totalNoVat, selectedService.name).toFixed(1)} pv</p>
                 </div>
               </div>
+
+              {/* Lisää tarjouskoriin */}
+              <div className="mt-6 pt-6 border-t flex flex-col md:flex-row md:items-end gap-3">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="targetName">Kohteen nimi / osoite</Label>
+                  <Input
+                    id="targetName"
+                    value={targetName}
+                    onChange={(e) => setTargetName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addToBasket(); }}
+                    placeholder={`esim. Vidnäsinkatu 4-6 (tyhjänä: Kohde ${basket.length + 1})`}
+                  />
+                </div>
+                <Button onClick={addToBasket} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Lisää koriin
+                </Button>
+              </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Tarjouskori */}
+        {(basket.length > 0 || (selectedService && apartmentCountNum > 0)) && (
+          <OfferBasket items={basket} onChange={updateBasket} formatCurrency={formatCurrency} />
         )}
 
         {/* Settings Modal */}
