@@ -31,7 +31,10 @@ export const loadPricingSettings = (): PricingSettings => {
   try {
     const raw = localStorage.getItem(PRICING_SETTINGS_KEY);
     if (!raw) return defaultPricingSettings;
-    return sanitizeSettings(JSON.parse(raw));
+    const s = sanitizeSettings(JSON.parse(raw));
+    // kirjoitetaan takaisin siistittynä, jotta vanha muoto ei jää kummittelemaan
+    localStorage.setItem(PRICING_SETTINGS_KEY, JSON.stringify(s));
+    return s;
   } catch {
     return defaultPricingSettings;
   }

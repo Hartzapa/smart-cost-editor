@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings as SettingsIcon, Plus, Trash2, Save, RotateCcw } from 'lucide-react';
 import { ServiceData, ServiceType } from './CleaningCalculator';
-import { dayCost, targetDayRevenue, type PricingSettings } from '@/lib/pace';
+import { dayCost, sanitizeSettings, targetDayRevenue, type PricingSettings } from '@/lib/pace';
 
 interface SettingsProps {
   services: ServiceData[];
@@ -25,7 +25,8 @@ const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onReset,
 
   const updatePricing = (field: keyof PricingSettings, value: string) => {
     const n = parseFloat(value);
-    setEditablePricing(prev => ({ ...prev, [field]: Number.isFinite(n) ? n : 0 }));
+    // tyhjä kenttä pidetään NaN:na muokkauksen ajan; tallennuksessa sanitizeSettings korvaa sen vakiolla
+    setEditablePricing(prev => ({ ...prev, [field]: Number.isFinite(n) ? n : NaN }));
   };
 
   const addService = (type: ServiceType) => {
@@ -61,7 +62,7 @@ const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onReset,
   };
 
   const handleSave = () => {
-    onSave(editableServices, editablePricing);
+    onSave(editableServices, sanitizeSettings(editablePricing));
     onClose();
   };
 
@@ -109,35 +110,37 @@ const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onReset,
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="p-min" className="text-xs text-slate-500">Minimi €/h / tekijä (tappioraja)</Label>
-                <Input id="p-min" type="number" step="0.5" min="0" value={editablePricing.minHourlyRate}
+                <Input id="p-min" type="number" step="0.5" min="0" value={Number.isFinite(editablePricing.minHourlyRate) ? editablePricing.minHourlyRate : ''}
                   onChange={e => updatePricing('minHourlyRate', e.target.value)} className="border-red-200" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="p-target" className="text-xs text-slate-500">Tavoite €/h / tekijä</Label>
-                <Input id="p-target" type="number" step="0.5" min="0" value={editablePricing.targetHourlyRate}
+                <Input id="p-target" type="number" step="0.5" min="0" value={Number.isFinite(editablePricing.targetHourlyRate) ? editablePricing.targetHourlyRate : ''}
                   onChange={e => updatePricing('targetHourlyRate', e.target.value)} className="border-green-200" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="p-workers" className="text-xs text-slate-500">Tekijöitä</Label>
-                <Input id="p-workers" type="number" step="1" min="1" value={editablePricing.workers}
+                <Input id="p-workers" type="number" step="1" min="1" value={Number.isFinite(editablePricing.workers) ? editablePricing.workers : ''}
                   onChange={e => updatePricing('workers', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="p-hours" className="text-xs text-slate-500">Työpäivä (h)</Label>
-                <Input id="p-hours" type="number" step="0.5" min="1" value={editablePricing.hoursPerDay}
+                <Input id="p-hours" type="number" step="0.5" min="1" value={Number.isFinite(editablePricing.hoursPerDay) ? editablePricing.hoursPerDay : ''}
                   onChange={e => updatePricing('hoursPerDay', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="p-allowance" className="text-xs text-slate-500">Päiväraha / pv (Ylivieska)</Label>
-                <Input id="p-allowance" type="number" step="1" min="0" value={editablePricing.dailyAllowance}
+                <Input id="p-allowance" type="number" step="1" min="0" value={Number.isFinite(editablePricing.dailyAllowance) ? editablePricing.dailyAllowance : ''}
                   onChange={e => updatePricing('dailyAllowance', e.target.value)} />
               </div>
             </div>
             <p className="text-sm text-slate-600 mt-3">
-              Tappioraja: <span className="font-semibold text-red-600">{dayCost(editablePricing).toFixed(0)} €/pv</span>
-              {' '}({editablePricing.workers} × {editablePricing.minHourlyRate} €/h × {editablePricing.hoursPerDay} h)
-              {' · '}tavoite: <span className="font-semibold text-green-700">{targetDayRevenue(editablePricing).toFixed(0)} €/pv</span>
-              {' '}({editablePricing.workers} × {editablePricing.targetHourlyRate} €/h × {editablePricing.hoursPerDay} h)
+              {(() => { const p = sanitizeSettings(editablePricing); return (<>
+              Tappioraja: <span className="font-semibold text-red-600">{dayCost(p).toFixed(0)} €/pv</span>
+              {' '}({p.workers} × {p.minHourlyRate} €/h × {p.hoursPerDay} h)
+              {' · '}tavoite: <span className="font-semibold text-green-700">{targetDayRevenue(p).toFixed(0)} €/pv</span>
+              {' '}({p.workers} × {p.targetHourlyRate} €/h × {p.hoursPerDay} h)
+              </>); })()}
             </p>
           </section>
 

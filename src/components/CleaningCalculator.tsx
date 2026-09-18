@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import OfferBasket from './OfferBasket';
 import { loadBasket, saveBasket, round2, type BasketItem } from '@/lib/offerBasket';
 import PaceSection from './PaceSection';
-import { crewHourlyRate, dayCost, loadPricingSettings, savePricingSettings, type PricingSettings } from '@/lib/pace';
+import { crewHourlyRate, dayCost, loadPricingSettings, sanitizeSettings, savePricingSettings, type PricingSettings } from '@/lib/pace';
 
 import { defaultServices, defaultLocations, VAT_RATE } from '@/lib/defaultPrices';
 
@@ -119,8 +119,10 @@ const CleaningCalculator = () => {
   };
 
   const savePricing = (p: PricingSettings) => {
-    setPricing(p);
-    savePricingSettings(p);
+    // Tarkistetaan aina: puuttuvat/virheelliset arvot korvataan vakioilla, minimi ei voi ylittää tavoitetta
+    const safe = sanitizeSettings(p);
+    setPricing(safe);
+    savePricingSettings(safe);
   };
 
   /** Tuo hinnaston tiedostosta tai jakolinkistä ja tallentaa sen tälle koneelle. */
