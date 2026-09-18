@@ -16,12 +16,7 @@ import { loadBasket, saveBasket, round2, type BasketItem } from '@/lib/offerBask
 import PaceSection from './PaceSection';
 import { crewHourlyRate, dayCost, loadPricingSettings, savePricingSettings, type PricingSettings } from '@/lib/pace';
 
-const VAT_RATE = 0.255;
-
-const defaultLocations: LocationData[] = [
-  { id: 'kokkola', name: 'Kokkola', surchargePerUnit: 0, builtIn: true },
-  { id: 'ylivieska', name: 'Ylivieska', surchargePerUnit: 0, isYlivieska: true, builtIn: true },
-];
+import { defaultServices, defaultLocations, VAT_RATE } from '@/lib/defaultPrices';
 
 export type ServiceType = 'rivitalo' | 'kerrostalo' | 'omakotitalo' | 'muut-palvelut';
 
@@ -32,37 +27,6 @@ export interface ServiceData {
   priceNoVat: number;
   priceWithVat: number;
 }
-
-const defaultServices: ServiceData[] = [
-  { id: 'rv-1', name: 'Talotuuletin', type: 'rivitalo', priceNoVat: 135.00, priceWithVat: 169.42 },
-  { id: 'rv-2', name: 'Huippuimuri', type: 'rivitalo', priceNoVat: 92.00, priceWithVat: 115.46 },
-  { id: 'rv-3', name: 'Huonekohtainen LTO', type: 'rivitalo', priceNoVat: 170.00, priceWithVat: 213.35 },
-  { id: 'rv-4', name: 'Painovoimainen', type: 'rivitalo', priceNoVat: 120.00, priceWithVat: 150.60 },
-  { id: 'rv-5', name: 'Talotuuletin Ylivieska', type: 'rivitalo', priceNoVat: 183.00, priceWithVat: 229.67 },
-  { id: 'rv-6', name: 'Huippuimuri Ylivieska', type: 'rivitalo', priceNoVat: 140.00, priceWithVat: 175.70 },
-  
-  { id: 'kt-1', name: 'Huonekohtainen LTO', type: 'kerrostalo', priceNoVat: 115.00, priceWithVat: 144.32 },
-  { id: 'kt-2', name: 'Huippuimuri', type: 'kerrostalo', priceNoVat: 90.00, priceWithVat: 112.95 },
-  { id: 'kt-3', name: 'Painovoimainen', type: 'kerrostalo', priceNoVat: 90.00, priceWithVat: 112.95 },
-  { id: 'kt-4', name: 'Koneellinen ilmanvaihto', type: 'kerrostalo', priceNoVat: 175.00, priceWithVat: 219.62 },
-  { id: 'kt-5', name: 'Huonekohtainen LTO Ylivieska', type: 'kerrostalo', priceNoVat: 163.00, priceWithVat: 204.57 },
-  { id: 'kt-6', name: 'Huippuimuri Ylivieska', type: 'kerrostalo', priceNoVat: 138.00, priceWithVat: 173.19 },
-  
-  { id: 'ok-1', name: 'Huonekohtainen LTO -160', type: 'omakotitalo', priceNoVat: 366.53, priceWithVat: 460.00 },
-  { id: 'ok-2', name: 'Huonekohtainen LTO +160', type: 'omakotitalo', priceNoVat: 406.37, priceWithVat: 509.99 },
-  { id: 'ok-3', name: 'Huonekohtainen LTO +200', type: 'omakotitalo', priceNoVat: 446.22, priceWithVat: 560.01 },
-  { id: 'ok-4', name: 'Painovoimainen', type: 'omakotitalo', priceNoVat: 120.00, priceWithVat: 150.60 },
-  { id: 'ok-5', name: 'Huipparilla', type: 'omakotitalo', priceNoVat: 100.00, priceWithVat: 125.50 },
-  { id: 'ok-6', name: 'Talotuuletin', type: 'omakotitalo', priceNoVat: 150.00, priceWithVat: 188.25 },
-  { id: 'ok-7', name: 'Huonekohtainen LTO -160 Ylivieska', type: 'omakotitalo', priceNoVat: 414.53, priceWithVat: 520.24 },
-  { id: 'ok-8', name: 'Huonekohtainen LTO +160 Ylivieska', type: 'omakotitalo', priceNoVat: 454.37, priceWithVat: 570.24 },
-  { id: 'ok-9', name: 'Talotuuletin Ylivieska', type: 'omakotitalo', priceNoVat: 198.00, priceWithVat: 248.49 },
-  
-  { id: 'mp-1', name: 'Tarjottu raahenkohde', type: 'muut-palvelut', priceNoVat: 106.25, priceWithVat: 133.34 },
-  { id: 'mp-2', name: 'Puhdistustyö Yritykset', type: 'muut-palvelut', priceNoVat: 38.00, priceWithVat: 47.69 },
-  { id: 'mp-3', name: 'Puhdistustyö Yksityinen', type: 'muut-palvelut', priceNoVat: 40.00, priceWithVat: 50.20 },
-  { id: 'mp-4', name: 'Tarjottu raahenkohde Ylivieska', type: 'muut-palvelut', priceNoVat: 154.25, priceWithVat: 193.58 },
-];
 
 const CleaningCalculator = () => {
   const [services, setServices] = useState<ServiceData[]>([]);
@@ -83,7 +47,7 @@ const CleaningCalculator = () => {
 
   // Ensure built-in Kokkola & Ylivieska are always present (and first)
   const mergeWithBuiltIns = (custom: LocationData[]) => {
-    const merged = [...defaultLocations];
+    const merged = defaultLocations.filter(l => l.builtIn);
     custom.forEach(l => {
       if (!merged.find(m => m.id === l.id)) merged.push(l);
     });
@@ -144,6 +108,14 @@ const CleaningCalculator = () => {
   const saveServices = (newServices: ServiceData[]) => {
     setServices(newServices);
     localStorage.setItem(SERVICES_KEY, JSON.stringify(newServices));
+  };
+
+  /** Palauttaa koodin vakiohinnaston (src/lib/defaultPrices.ts) tälle koneelle. */
+  const resetToDefaults = () => {
+    saveServices(defaultServices);
+    saveLocations(defaultLocations);
+    setSelectedService(null);
+    toast.success('Vakiohinnasto palautettu.');
   };
 
   const savePricing = (p: PricingSettings) => {
@@ -549,6 +521,7 @@ const CleaningCalculator = () => {
             services={services}
             pricing={pricing}
             onSave={(svc, p) => { saveServices(svc); savePricing(p); }}
+            onReset={resetToDefaults}
             onClose={() => setShowSettings(false)}
           />
         )}

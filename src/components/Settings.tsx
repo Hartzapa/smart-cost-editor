@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings as SettingsIcon, Plus, Trash2, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Plus, Trash2, Save, RotateCcw } from 'lucide-react';
 import { ServiceData, ServiceType } from './CleaningCalculator';
 import { dayCost, type PricingSettings } from '@/lib/pace';
 
@@ -11,10 +11,13 @@ interface SettingsProps {
   services: ServiceData[];
   pricing: PricingSettings;
   onSave: (services: ServiceData[], pricing: PricingSettings) => void;
+  /** Palauta koodin vakiohinnasto */
+  onReset: () => void;
   onClose: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onClose }) => {
+const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onReset, onClose }) => {
+  const [confirmReset, setConfirmReset] = useState(false);
   const [editableServices, setEditableServices] = useState<ServiceData[]>(
     services.map(service => ({ ...service }))
   );
@@ -198,8 +201,24 @@ const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onClose 
         </div>
 
         {/* Footer info */}
-        <div className="px-6 md:px-8 py-4 bg-slate-50 border-t border-slate-100 text-center">
+        <div className="px-6 md:px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
           <p className="text-xs text-slate-500">ALV 25.5% lasketaan automaattisesti ALV 0% hinnan perusteella (ja päinvastoin).</p>
+          {confirmReset ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-slate-600">Korvataanko tämän koneen hinnat vakiohinnastolla?</span>
+              <Button size="sm" variant="destructive" onClick={() => { onReset(); onClose(); }}>Palauta</Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmReset(false)}>Peruuta</Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmReset(true)}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800"
+              title="Palauttaa sovelluksen mukana tulevan vakiohinnaston (src/lib/defaultPrices.ts)"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Palauta vakiohinnat
+            </button>
+          )}
         </div>
       </div>
     </div>
