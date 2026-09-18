@@ -16,17 +16,20 @@ import {
   withVat,
   type BasketItem,
 } from '@/lib/offerBasket';
-import { formatDays } from '@/lib/pace';
+import { dayCost as dayCostOf, formatDays, formatRate, hourlyPerWorker, rateStatus, type PricingSettings } from '@/lib/pace';
+import { statusText } from './PaceSection';
 
 interface Props {
   items: BasketItem[];
   onChange: (items: BasketItem[]) => void;
   formatCurrency: (n: number) => string;
-  /** työparin päiväkustannus €/pv */
-  dayCost: number;
+  settings: PricingSettings;
 }
 
-const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency, dayCost }) => {
+const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency, settings }) => {
+  const dayCost = dayCostOf(settings);
+  /** rivin toteutuva €/h/tekijä tavoitetahdilla */
+  const rowRate = (i: BasketItem) => (i.paceTarget ? hourlyPerWorker((i.unitNoVat + i.surchargePerUnit) * i.paceTarget, settings) : null);
   const [name, setName] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -163,8 +166,13 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency, dayCost
                         />
                       </TableCell>
                       <TableCell className="text-right">{i.paceTarget ? formatDays(itemDays(i)) : '–'}</TableCell>
-                      <TableCell className={`text-right ${(itemResult(i, dayCost) ?? 0) < 0 ? 'text-red-600' : ''}`}>
-                        {(() => { const r = itemResult(i, dayCost); return r === null ? '–' : formatCurrency(r); })()}
+                      <TableCell className="text-right">
+                        {(() => {
+                          const r = itemResult(i, dayCost); const rate = rowRate(i);
+                          if (r === null || rate === null) return '–';
+                          const cls = statusText[rateStatus(rate, settings)];
+                          return (<span className={cls}>{formatCurrency(r)}<span className="block text-xs">{formatRate(rate)}</span></span>);
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <button
@@ -188,8 +196,15 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency, dayCost
                     <TableCell className="text-right font-semibold text-primary hidden xl:table-cell">{formatCurrency(totals.withVat)}</TableCell>
                     <TableCell />
                     <TableCell className="text-right font-semibold">{totals.days > 0 ? formatDays(totals.days) : '–'}</TableCell>
-                    <TableCell className={`text-right font-semibold ${totals.result < 0 ? 'text-red-600' : 'text-green-700'}`}>
-                      {totals.days > 0 ? formatCurrency(totals.result) : '–'}
+                    <TableCell className="text-right font-semibold">
+                      {(() => {
+                        if (totals.days <= 0) return '–';
+                        const paced = items.filter(i => i.paceTarget && i.paceTarget > 0);
+                        const rev = paced.reduce((s, i) => s + i.totalNoVat, 0);
+                        const rate = hourlyPerWorker(rev / totals.days, settings);
+                        const cls = statusText[rateStatus(rate, settings)];
+                        return (<span className={cls}>{formatCurrency(totals.result)}<span className="block text-xs font-normal">{formatRate(rate)}</span></span>);
+                      })()}
                     </TableCell>
                     <TableCell />
                   </TableRow>
@@ -198,7 +213,7 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency, dayCost
             </div>
             <p className="text-xs text-muted-foreground">
               Yhteensä sis. ALV 25,5 %: {formatCurrency(totals.withVat)} (ALV {formatCurrency(vatOf(totals.noVat))} lasketaan verottomasta yhteissummasta). Max h yhteensä {totals.hours.toFixed(1)} h.
-              {' '}Tulos = ALV 0 % − työpäivät × {formatCurrency(dayCost)}.
+              {' '}Tulos = ALV 0 % − työpäivät × {formatCurrency(dayCost)} (tappioraja {settings.minHourlyRate} €/h/tekijä); €/h on toteutuva tuntihinta tekijää kohti, vihreä ≥ {settings.targetHourlyRate} €/h.
               {totals.withoutPace > 0 && ` ${totals.withoutPace} ${totals.withoutPace === 1 ? 'rivillä' : 'rivillä'} ei ole tahtia – anna Tahti/pv, niin työpäivät ja tulos lasketaan.`}
             </p>
           </>

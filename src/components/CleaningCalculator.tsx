@@ -512,7 +512,7 @@ const CleaningCalculator = () => {
 
         {/* Tarjouskori */}
         {(basket.length > 0 || (selectedService && apartmentCountNum > 0)) && (
-          <OfferBasket items={basket} onChange={updateBasket} formatCurrency={formatCurrency} dayCost={dayCost(pricing)} />
+          <OfferBasket items={basket} onChange={updateBasket} formatCurrency={formatCurrency} settings={pricing} />
         )}
 
         {/* Settings Modal */}

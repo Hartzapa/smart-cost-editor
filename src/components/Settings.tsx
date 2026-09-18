@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings as SettingsIcon, Plus, Trash2, Save, RotateCcw } from 'lucide-react';
 import { ServiceData, ServiceType } from './CleaningCalculator';
-import { dayCost, type PricingSettings } from '@/lib/pace';
+import { dayCost, targetDayRevenue, type PricingSettings } from '@/lib/pace';
 
 interface SettingsProps {
   services: ServiceData[];
@@ -104,13 +104,18 @@ const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onReset,
           <section>
             <h2 className="text-lg font-bold text-slate-900 mb-1">Kannattavuus</h2>
             <p className="text-sm text-slate-500 mb-4">
-              Työ on kannattavaa, kun jokainen tekijä tuottaa tuntihinnan verran. Näitä käytetään tahtitaulukoissa ja max-tunneissa – hintoihin ne eivät vaikuta.
+              Tuntihinta tekijää kohti: minimi on ehdoton tappioraja, tavoite se mihin vähintään pyritään (noin 10 % kate). Näitä käytetään tahtitaulukoissa ja korin tuloksessa – hintoihin ne eivät vaikuta.
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="space-y-1">
-                <Label htmlFor="p-rate" className="text-xs text-slate-500">Tuntihinta / tekijä (€/h)</Label>
-                <Input id="p-rate" type="number" step="0.5" min="0" value={editablePricing.hourlyRatePerWorker}
-                  onChange={e => updatePricing('hourlyRatePerWorker', e.target.value)} />
+                <Label htmlFor="p-min" className="text-xs text-slate-500">Minimi €/h / tekijä (tappioraja)</Label>
+                <Input id="p-min" type="number" step="0.5" min="0" value={editablePricing.minHourlyRate}
+                  onChange={e => updatePricing('minHourlyRate', e.target.value)} className="border-red-200" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="p-target" className="text-xs text-slate-500">Tavoite €/h / tekijä</Label>
+                <Input id="p-target" type="number" step="0.5" min="0" value={editablePricing.targetHourlyRate}
+                  onChange={e => updatePricing('targetHourlyRate', e.target.value)} className="border-green-200" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="p-workers" className="text-xs text-slate-500">Tekijöitä</Label>
@@ -129,8 +134,10 @@ const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onReset,
               </div>
             </div>
             <p className="text-sm text-slate-600 mt-3">
-              Päiväkustannus: <span className="font-semibold">{dayCost(editablePricing).toFixed(2).replace('.', ',')} €/pv</span>
-              {' '}({editablePricing.workers} × {editablePricing.hourlyRatePerWorker} €/h × {editablePricing.hoursPerDay} h)
+              Tappioraja: <span className="font-semibold text-red-600">{dayCost(editablePricing).toFixed(0)} €/pv</span>
+              {' '}({editablePricing.workers} × {editablePricing.minHourlyRate} €/h × {editablePricing.hoursPerDay} h)
+              {' · '}tavoite: <span className="font-semibold text-green-700">{targetDayRevenue(editablePricing).toFixed(0)} €/pv</span>
+              {' '}({editablePricing.workers} × {editablePricing.targetHourlyRate} €/h × {editablePricing.hoursPerDay} h)
             </p>
           </section>
 
