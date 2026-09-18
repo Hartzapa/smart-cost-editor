@@ -1,5 +1,6 @@
 import type { ServiceData } from '@/components/CleaningCalculator';
 import type { LocationData } from '@/components/LocationManager';
+import { sanitizeSettings, type PricingSettings } from '@/lib/pace';
 
 /**
  * Hinnaston siirto koneelta toiselle ilman palvelinta:
@@ -16,13 +17,16 @@ export interface PriceListExport {
   exportedAt: string;
   services: ServiceData[];
   locations: LocationData[];
+  /** kannattavuusasetukset (tuntihinta, tekijät, työpäivä, päiväraha) */
+  pricing?: PricingSettings;
 }
 
-export const buildExport = (services: ServiceData[], locations: LocationData[]): PriceListExport => ({
+export const buildExport = (services: ServiceData[], locations: LocationData[], pricing?: PricingSettings): PriceListExport => ({
   version: 1,
   exportedAt: new Date().toISOString(),
   services,
   locations,
+  ...(pricing ? { pricing } : {}),
 });
 
 const isService = (s: unknown): s is ServiceData =>
@@ -52,6 +56,7 @@ export const parseImport = (raw: unknown): PriceListExport => {
     exportedAt: typeof data.exportedAt === 'string' ? data.exportedAt : new Date().toISOString(),
     services: data.services,
     locations,
+    ...(data.pricing ? { pricing: sanitizeSettings(data.pricing) } : {}),
   };
 };
 

@@ -24,7 +24,16 @@ export interface BasketItem {
   totalNoVat: number;
   /** Arvioitu enimmäistyöaika tunteina */
   maxHours: number;
+  /** Tavoitetahti asuntoa/konetta päivässä (valinnainen) */
+  paceTarget?: number;
 }
+
+/** Kohteen työpäivät tavoitetahdilla; 0 jos tahtia ei ole annettu */
+export const itemDays = (i: BasketItem) => (i.paceTarget && i.paceTarget > 0 ? i.apartments / i.paceTarget : 0);
+
+/** Kohteen tulos (ALV 0 % − työpäivät × päiväkustannus); null jos tahtia ei ole annettu */
+export const itemResult = (i: BasketItem, dayCost: number) =>
+  i.paceTarget && i.paceTarget > 0 ? round2(i.totalNoVat - itemDays(i) * dayCost) : null;
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -38,10 +47,17 @@ export interface BasketTotals {
   vat: number;
   withVat: number;
   hours: number;
+  /** työpäivät yhteensä niistä riveistä, joilla on tahti */
+  days: number;
+  /** tulos yhteensä niistä riveistä, joilla on tahti */
+  result: number;
+  /** montako riviä on ilman tahtia */
+  withoutPace: number;
 }
 
-export const basketTotals = (items: BasketItem[]): BasketTotals => {
+export const basketTotals = (items: BasketItem[], dayCost = 0): BasketTotals => {
   const noVat = round2(items.reduce((s, i) => s + i.totalNoVat, 0));
+  const paced = items.filter(i => i.paceTarget && i.paceTarget > 0);
   return {
     items: items.length,
     apartments: items.reduce((s, i) => s + i.apartments, 0),
@@ -49,6 +65,9 @@ export const basketTotals = (items: BasketItem[]): BasketTotals => {
     vat: vatOf(noVat),
     withVat: withVat(noVat),
     hours: round2(items.reduce((s, i) => s + i.maxHours, 0)),
+    days: round2(paced.reduce((s, i) => s + itemDays(i), 0)),
+    result: round2(paced.reduce((s, i) => s + (itemResult(i, dayCost) ?? 0), 0)),
+    withoutPace: items.length - paced.length,
   };
 };
 
@@ -71,31 +90,37 @@ export const saveBasket = (items: BasketItem[]) => {
 
 const fi = (n: number) => n.toFixed(2).replace('.', ',');
 
-const HEADER = ['Kohde', 'Sijainti', 'Kohteen tyyppi', 'Palvelu', 'Asuntoja', 'Yksikköhinta ALV 0 %', 'Sijaintilisä / asunto', 'Yhteensä ALV 0 %', 'ALV 25,5 %', 'Yhteensä ALV 25,5 %', 'Max työtuntia'];
+const HEADER = ['Kohde', 'Sijainti', 'Kohteen tyyppi', 'Palvelu', 'Asuntoja', 'Yksikköhinta ALV 0 %', 'Sijaintilisä / asunto', 'Yhteensä ALV 0 %', 'ALV 25,5 %', 'Yhteensä ALV 25,5 %', 'Max työtuntia', 'Tavoitetahti / pv', 'Työpäiviä', 'Tulos ALV 0 %'];
 
-const itemRow = (i: BasketItem): string[] => [
-  i.target, i.locationName, i.serviceTypeLabel, i.serviceName, String(i.apartments),
-  fi(i.unitNoVat), fi(i.surchargePerUnit), fi(i.totalNoVat), fi(vatOf(i.totalNoVat)), fi(withVat(i.totalNoVat)), fi(i.maxHours),
-];
+const itemRow = (i: BasketItem, dayCost: number): string[] => {
+  const res = itemResult(i, dayCost);
+  return [
+    i.target, i.locationName, i.serviceTypeLabel, i.serviceName, String(i.apartments),
+    fi(i.unitNoVat), fi(i.surchargePerUnit), fi(i.totalNoVat), fi(vatOf(i.totalNoVat)), fi(withVat(i.totalNoVat)), fi(i.maxHours),
+    i.paceTarget ? String(i.paceTarget) : '', i.paceTarget ? fi(itemDays(i)) : '', res === null ? '' : fi(res),
+  ];
+};
 
 const totalsRow = (t: BasketTotals): string[] => [
   'YHTEENSÄ', '', '', `${t.items} kohdetta`, String(t.apartments), '', '', fi(t.noVat), fi(t.vat), fi(t.withVat), fi(t.hours),
+  '', t.days > 0 ? fi(t.days) : '', t.days > 0 ? fi(t.result) : '',
 ];
 
-export const basketRows = (items: BasketItem[]): string[][] => [HEADER, ...items.map(itemRow), totalsRow(basketTotals(items))];
+export const basketRows = (items: BasketItem[], dayCost = 0): string[][] =>
+  [HEADER, ...items.map(i => itemRow(i, dayCost)), totalsRow(basketTotals(items, dayCost))];
 
 /** Sarkaineroteltu teksti – liimautuu suoraan Exceliin tai JOBIin. */
-export const basketAsTsv = (items: BasketItem[]) =>
-  basketRows(items).map(r => r.join('\t')).join('\n');
+export const basketAsTsv = (items: BasketItem[], dayCost = 0) =>
+  basketRows(items, dayCost).map(r => r.join('\t')).join('\n');
 
 /** Excel-yhteensopiva CSV (puolipiste, UTF-8 BOM) suomalaisilla asetuksilla. */
-export const basketAsCsv = (items: BasketItem[]) => {
+export const basketAsCsv = (items: BasketItem[], dayCost = 0) => {
   const esc = (s: string) => (/[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  return '﻿' + basketRows(items).map(r => r.map(esc).join(';')).join('\r\n');
+  return '\uFEFF' + basketRows(items, dayCost).map(r => r.map(esc).join(';')).join('\r\n');
 };
 
-export const downloadBasketCsv = (items: BasketItem[], name = 'tarjouskori') => {
-  const blob = new Blob([basketAsCsv(items)], { type: 'text/csv;charset=utf-8' });
+export const downloadBasketCsv = (items: BasketItem[], name = 'tarjouskori', dayCost = 0) => {
+  const blob = new Blob([basketAsCsv(items, dayCost)], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

@@ -10,24 +10,34 @@ import {
   basketAsTsv,
   basketTotals,
   downloadBasketCsv,
+  itemDays,
+  itemResult,
   vatOf,
   withVat,
   type BasketItem,
 } from '@/lib/offerBasket';
+import { formatDays } from '@/lib/pace';
 
 interface Props {
   items: BasketItem[];
   onChange: (items: BasketItem[]) => void;
   formatCurrency: (n: number) => string;
+  /** työparin päiväkustannus €/pv */
+  dayCost: number;
 }
 
-const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency }) => {
+const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency, dayCost }) => {
   const [name, setName] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const totals = basketTotals(items);
+  const totals = basketTotals(items, dayCost);
 
   const remove = (id: string) => onChange(items.filter(i => i.id !== id));
+
+  const setPace = (id: string, value: string) => {
+    const n = parseInt(value);
+    onChange(items.map(i => (i.id === id ? { ...i, paceTarget: Number.isFinite(n) && n > 0 ? n : undefined } : i)));
+  };
 
   const clear = () => {
     onChange([]);
@@ -38,13 +48,13 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency }) => {
   const fileName = () => (name.trim() ? name.trim().replace(/[^\p{L}\p{N}-]+/gu, '_') : 'tarjouskori');
 
   const exportCsv = () => {
-    downloadBasketCsv(items, fileName());
+    downloadBasketCsv(items, fileName(), dayCost);
     toast.success('Tarjouskori tallennettu CSV-tiedostoksi (avautuu Excelissä).');
   };
 
   const copyTsv = async () => {
     try {
-      await copyToClipboard(basketAsTsv(items));
+      await copyToClipboard(basketAsTsv(items, dayCost));
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
       toast.success('Taulukko kopioitu – liitä Exceliin tai JOBIin.');
@@ -103,7 +113,7 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency }) => {
                 className="max-w-xs"
               />
             </div>
-            <div className="overflow-x-auto -mx-2">
+            <div className="overflow-x-auto -mx-2 [&_td]:px-2 [&_td]:py-2 [&_th]:px-2 [&_th]:h-9 text-sm">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -112,8 +122,10 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency }) => {
                     <TableHead className="text-right">Asuntoja</TableHead>
                     <TableHead className="text-right">€/asunto</TableHead>
                     <TableHead className="text-right">ALV 0 %</TableHead>
-                    <TableHead className="text-right">ALV 25,5 %</TableHead>
-                    <TableHead className="text-right">Max h</TableHead>
+                    <TableHead className="text-right hidden xl:table-cell">ALV 25,5 %</TableHead>
+                    <TableHead className="text-right">Tahti / pv</TableHead>
+                    <TableHead className="text-right">Pv</TableHead>
+                    <TableHead className="text-right">Tulos</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -138,8 +150,22 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency }) => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(i.totalNoVat)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(withVat(i.totalNoVat))}</TableCell>
-                      <TableCell className="text-right">{i.maxHours.toFixed(1)}</TableCell>
+                      <TableCell className="text-right hidden xl:table-cell">{formatCurrency(withVat(i.totalNoVat))}</TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={i.paceTarget ?? ''}
+                          onChange={e => setPace(i.id, e.target.value)}
+                          aria-label={`Tavoitetahti ${i.target}`}
+                          className="w-16 h-8 text-right ml-auto"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">{i.paceTarget ? formatDays(itemDays(i)) : '–'}</TableCell>
+                      <TableCell className={`text-right ${(itemResult(i, dayCost) ?? 0) < 0 ? 'text-red-600' : ''}`}>
+                        {(() => { const r = itemResult(i, dayCost); return r === null ? '–' : formatCurrency(r); })()}
+                      </TableCell>
                       <TableCell className="text-right">
                         <button
                           onClick={() => remove(i.id)}
@@ -159,15 +185,21 @@ const OfferBasket: React.FC<Props> = ({ items, onChange, formatCurrency }) => {
                     <TableCell className="text-right font-semibold">{totals.apartments}</TableCell>
                     <TableCell />
                     <TableCell className="text-right font-semibold text-primary">{formatCurrency(totals.noVat)}</TableCell>
-                    <TableCell className="text-right font-semibold text-primary">{formatCurrency(totals.withVat)}</TableCell>
-                    <TableCell className="text-right font-semibold">{totals.hours.toFixed(1)}</TableCell>
+                    <TableCell className="text-right font-semibold text-primary hidden xl:table-cell">{formatCurrency(totals.withVat)}</TableCell>
+                    <TableCell />
+                    <TableCell className="text-right font-semibold">{totals.days > 0 ? formatDays(totals.days) : '–'}</TableCell>
+                    <TableCell className={`text-right font-semibold ${totals.result < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                      {totals.days > 0 ? formatCurrency(totals.result) : '–'}
+                    </TableCell>
                     <TableCell />
                   </TableRow>
                 </TableFooter>
               </Table>
             </div>
             <p className="text-xs text-muted-foreground">
-              ALV {formatCurrency(vatOf(totals.noVat))} lasketaan verottomasta yhteissummasta. Max h = {totals.hours.toFixed(1)} h ≈ {(totals.hours / 8).toFixed(1)} työpäivää työparilta.
+              Yhteensä sis. ALV 25,5 %: {formatCurrency(totals.withVat)} (ALV {formatCurrency(vatOf(totals.noVat))} lasketaan verottomasta yhteissummasta). Max h yhteensä {totals.hours.toFixed(1)} h.
+              {' '}Tulos = ALV 0 % − työpäivät × {formatCurrency(dayCost)}.
+              {totals.withoutPace > 0 && ` ${totals.withoutPace} ${totals.withoutPace === 1 ? 'rivillä' : 'rivillä'} ei ole tahtia – anna Tahti/pv, niin työpäivät ja tulos lasketaan.`}
             </p>
           </>
         )}

@@ -5,17 +5,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings as SettingsIcon, Plus, Trash2, Save } from 'lucide-react';
 import { ServiceData, ServiceType } from './CleaningCalculator';
+import { dayCost, type PricingSettings } from '@/lib/pace';
 
 interface SettingsProps {
   services: ServiceData[];
-  onSave: (services: ServiceData[]) => void;
+  pricing: PricingSettings;
+  onSave: (services: ServiceData[], pricing: PricingSettings) => void;
   onClose: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ services, onSave, onClose }) => {
+const Settings: React.FC<SettingsProps> = ({ services, pricing, onSave, onClose }) => {
   const [editableServices, setEditableServices] = useState<ServiceData[]>(
     services.map(service => ({ ...service }))
   );
+  const [editablePricing, setEditablePricing] = useState<PricingSettings>({ ...pricing });
+
+  const updatePricing = (field: keyof PricingSettings, value: string) => {
+    const n = parseFloat(value);
+    setEditablePricing(prev => ({ ...prev, [field]: Number.isFinite(n) ? n : 0 }));
+  };
 
   const addService = (type: ServiceType) => {
     const newService: ServiceData = {
@@ -50,7 +58,7 @@ const Settings: React.FC<SettingsProps> = ({ services, onSave, onClose }) => {
   };
 
   const handleSave = () => {
-    onSave(editableServices);
+    onSave(editableServices, editablePricing);
     onClose();
   };
 
@@ -90,6 +98,39 @@ const Settings: React.FC<SettingsProps> = ({ services, onSave, onClose }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-10">
+          <section>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Kannattavuus</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Työ on kannattavaa, kun jokainen tekijä tuottaa tuntihinnan verran. Näitä käytetään tahtitaulukoissa ja max-tunneissa – hintoihin ne eivät vaikuta.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="p-rate" className="text-xs text-slate-500">Tuntihinta / tekijä (€/h)</Label>
+                <Input id="p-rate" type="number" step="0.5" min="0" value={editablePricing.hourlyRatePerWorker}
+                  onChange={e => updatePricing('hourlyRatePerWorker', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="p-workers" className="text-xs text-slate-500">Tekijöitä</Label>
+                <Input id="p-workers" type="number" step="1" min="1" value={editablePricing.workers}
+                  onChange={e => updatePricing('workers', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="p-hours" className="text-xs text-slate-500">Työpäivä (h)</Label>
+                <Input id="p-hours" type="number" step="0.5" min="1" value={editablePricing.hoursPerDay}
+                  onChange={e => updatePricing('hoursPerDay', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="p-allowance" className="text-xs text-slate-500">Päiväraha / pv (Ylivieska)</Label>
+                <Input id="p-allowance" type="number" step="1" min="0" value={editablePricing.dailyAllowance}
+                  onChange={e => updatePricing('dailyAllowance', e.target.value)} />
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mt-3">
+              Päiväkustannus: <span className="font-semibold">{dayCost(editablePricing).toFixed(2).replace('.', ',')} €/pv</span>
+              {' '}({editablePricing.workers} × {editablePricing.hourlyRatePerWorker} €/h × {editablePricing.hoursPerDay} h)
+            </p>
+          </section>
+
           {groupedServices.map(group => (
             <section key={group.value}>
               <div className="flex items-center justify-between mb-4">

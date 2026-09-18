@@ -13,6 +13,8 @@ import { consumeShareLink, LOCATIONS_KEY, SERVICES_KEY, type PriceListExport } f
 import { toast } from 'sonner';
 import OfferBasket from './OfferBasket';
 import { loadBasket, saveBasket, round2, type BasketItem } from '@/lib/offerBasket';
+import PaceSection from './PaceSection';
+import { crewHourlyRate, dayCost, loadPricingSettings, savePricingSettings, type PricingSettings } from '@/lib/pace';
 
 const VAT_RATE = 0.255;
 
@@ -74,6 +76,8 @@ const CleaningCalculator = () => {
   const [selectedLocationId, setSelectedLocationId] = useState<string>('kokkola');
   const [basket, setBasket] = useState<BasketItem[]>(() => loadBasket());
   const [targetName, setTargetName] = useState('');
+  const [pricing, setPricing] = useState<PricingSettings>(() => loadPricingSettings());
+  const [paceTarget, setPaceTarget] = useState<number | ''>('');
 
   const selectedLocation = locations.find(l => l.id === selectedLocationId) || locations[0];
 
@@ -142,10 +146,16 @@ const CleaningCalculator = () => {
     localStorage.setItem(SERVICES_KEY, JSON.stringify(newServices));
   };
 
+  const savePricing = (p: PricingSettings) => {
+    setPricing(p);
+    savePricingSettings(p);
+  };
+
   /** Tuo hinnaston tiedostosta tai jakolinkistä ja tallentaa sen tälle koneelle. */
   const applyImport = (data: PriceListExport) => {
     saveServices(data.services);
     saveLocations(data.locations);
+    if (data.pricing) savePricing(data.pricing);
     setSelectedService(null);
   };
 
@@ -169,6 +179,7 @@ const CleaningCalculator = () => {
       surchargePerUnit: selectedLocation && !selectedLocation.builtIn ? selectedLocation.surchargePerUnit : 0,
       totalNoVat: round2(totalNoVat),
       maxHours: round2(calculateMaxWorkingHours(totalNoVat, selectedService.name)),
+      paceTarget: typeof paceTarget === 'number' && paceTarget > 0 ? paceTarget : undefined,
     };
     updateBasket([...basket, item]);
     setTargetName('');
@@ -183,14 +194,14 @@ const CleaningCalculator = () => {
   };
 
   const calculateMaxWorkingHours = (revenue: number, serviceName: string) => {
-    const hourlyRate = 2 * 40; // 2 workers × 40€/hour
+    const hourlyRate = crewHourlyRate(pricing); // tekijät × €/h
     const isYlivieskaService = serviceName.toLowerCase().includes('ylivieska');
     
     if (isYlivieskaService) {
       // For Ylivieska services, subtract daily allowance first, then calculate hours
-      const dailyAllowance = 48; // 48€ daily allowance for work pair
+      const dailyAllowance = pricing.dailyAllowance;
       const dailyRevenue = revenue; // Total revenue
-      const workingDays = Math.ceil(dailyRevenue / (hourlyRate * 8 + dailyAllowance));
+      const workingDays = Math.ceil(dailyRevenue / (hourlyRate * pricing.hoursPerDay + dailyAllowance));
       const revenueAfterAllowances = dailyRevenue - (workingDays * dailyAllowance);
       return Math.max(0, revenueAfterAllowances / hourlyRate);
     }
@@ -202,14 +213,12 @@ const CleaningCalculator = () => {
     const isYlivieskaService = serviceName.toLowerCase().includes('ylivieska');
     
     if (isYlivieskaService) {
-      const hourlyRate = 2 * 40; // 2 workers × 40€/hour
-      const dailyAllowance = 48; // 48€ daily allowance for work pair
-      const dailyCost = hourlyRate * 8 + dailyAllowance; // 8 hours + daily allowance
+      const dailyCost = dayCost(pricing) + pricing.dailyAllowance;
       return revenue / dailyCost;
     }
     
     const hours = calculateMaxWorkingHours(revenue, serviceName);
-    return hours / 8; // 8 hours per working day
+    return hours / pricing.hoursPerDay;
   };
 
   const calculateFuelCosts = (serviceName: string) => {
@@ -318,7 +327,7 @@ const CleaningCalculator = () => {
         {/* Hinnaston siirto koneelta toiselle */}
         <div className="flex justify-between items-center gap-4 flex-wrap text-sm text-muted-foreground">
           <span>Hinnasto tallentuu tähän selaimeen. Siirrä se toiselle koneelle tiedostona tai jakolinkillä.</span>
-          <PriceListSync services={services} locations={locations} onImport={applyImport} />
+          <PriceListSync services={services} locations={locations} pricing={pricing} onImport={applyImport} />
         </div>
 
         {/* Service Selection */}
@@ -498,6 +507,16 @@ const CleaningCalculator = () => {
                 </div>
               </div>
 
+              <PaceSection
+                unitPrice={selectedService.priceNoVat + (selectedLocation && !selectedLocation.builtIn ? selectedLocation.surchargePerUnit : 0)}
+                apartments={apartmentCountNum}
+                unitLabel={selectedService.name.toLowerCase().includes('lto') ? 'konetta' : 'asuntoa'}
+                settings={pricing}
+                target={paceTarget}
+                onTargetChange={setPaceTarget}
+                formatCurrency={formatCurrency}
+              />
+
               {/* Lisää tarjouskoriin */}
               <div className="mt-6 pt-6 border-t flex flex-col md:flex-row md:items-end gap-3">
                 <div className="flex-1 space-y-2">
@@ -521,14 +540,15 @@ const CleaningCalculator = () => {
 
         {/* Tarjouskori */}
         {(basket.length > 0 || (selectedService && apartmentCountNum > 0)) && (
-          <OfferBasket items={basket} onChange={updateBasket} formatCurrency={formatCurrency} />
+          <OfferBasket items={basket} onChange={updateBasket} formatCurrency={formatCurrency} dayCost={dayCost(pricing)} />
         )}
 
         {/* Settings Modal */}
         {showSettings && (
           <Settings
             services={services}
-            onSave={saveServices}
+            pricing={pricing}
+            onSave={(svc, p) => { saveServices(svc); savePricing(p); }}
             onClose={() => setShowSettings(false)}
           />
         )}

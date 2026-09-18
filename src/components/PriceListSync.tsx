@@ -4,6 +4,7 @@ import { Download, Upload, Link2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ServiceData } from './CleaningCalculator';
 import type { LocationData } from './LocationManager';
+import type { PricingSettings } from '@/lib/pace';
 import {
   buildExport,
   buildShareLink,
@@ -16,15 +17,16 @@ import {
 interface Props {
   services: ServiceData[];
   locations: LocationData[];
+  pricing?: PricingSettings;
   onImport: (data: PriceListExport) => void;
 }
 
-const PriceListSync: React.FC<Props> = ({ services, locations, onImport }) => {
+const PriceListSync: React.FC<Props> = ({ services, locations, pricing, onImport }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
 
   const handleExport = () => {
-    downloadExport(buildExport(services, locations));
+    downloadExport(buildExport(services, locations, pricing));
     toast.success('Hinnasto tallennettu tiedostoon.');
   };
 
@@ -43,7 +45,7 @@ const PriceListSync: React.FC<Props> = ({ services, locations, onImport }) => {
 
   const handleShare = async () => {
     try {
-      await copyToClipboard(buildShareLink(buildExport(services, locations)));
+      await copyToClipboard(buildShareLink(buildExport(services, locations, pricing)));
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
       toast.success('Jakolinkki kopioitu. Avaa se toisella koneella, niin hinnat tulevat käyttöön siellä.');
