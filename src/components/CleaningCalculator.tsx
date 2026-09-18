@@ -8,6 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { Calculator, Settings as SettingsIcon, MapPin } from 'lucide-react';
 import Settings from './Settings';
 import LocationManager, { LocationData } from './LocationManager';
+import PriceListSync from './PriceListSync';
+import { consumeShareLink, LOCATIONS_KEY, SERVICES_KEY, type PriceListExport } from '@/lib/priceListSync';
+import { toast } from 'sonner';
 
 const VAT_RATE = 0.255;
 
@@ -70,8 +73,36 @@ const CleaningCalculator = () => {
 
   const selectedLocation = locations.find(l => l.id === selectedLocationId) || locations[0];
 
+  // Ensure built-in Kokkola & Ylivieska are always present (and first)
+  const mergeWithBuiltIns = (custom: LocationData[]) => {
+    const merged = [...defaultLocations];
+    custom.forEach(l => {
+      if (!merged.find(m => m.id === l.id)) merged.push(l);
+    });
+    return merged;
+  };
+
   useEffect(() => {
-    const saved = localStorage.getItem('cleaning-services');
+    // Jakolinkki (#hinnasto=...) ohittaa paikallisesti tallennetun hinnaston
+    const importFromHash = () => {
+      try {
+        const shared = consumeShareLink();
+        if (shared) {
+          applyImport(shared);
+          toast.success(`Hinnasto tuotu jakolinkistä: ${shared.services.length} palvelua.`);
+          return true;
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Jakolinkin lukeminen epäonnistui.');
+      }
+      return false;
+    };
+    window.addEventListener('hashchange', importFromHash);
+    if (importFromHash()) {
+      return () => window.removeEventListener('hashchange', importFromHash);
+    }
+
+    const saved = localStorage.getItem(SERVICES_KEY);
     if (saved) {
       try {
         setServices(JSON.parse(saved));
@@ -81,28 +112,22 @@ const CleaningCalculator = () => {
     } else {
       setServices(defaultServices);
     }
-    const savedLoc = localStorage.getItem('cleaning-locations');
+    const savedLoc = localStorage.getItem(LOCATIONS_KEY);
     if (savedLoc) {
       try {
-        const parsed: LocationData[] = JSON.parse(savedLoc);
-        // Ensure built-in Kokkola & Ylivieska always present
-        const merged = [...defaultLocations];
-        parsed.forEach(l => {
-          if (!merged.find(m => m.id === l.id)) merged.push(l);
-        });
-        setLocations(merged);
+        setLocations(mergeWithBuiltIns(JSON.parse(savedLoc)));
       } catch {
         setLocations(defaultLocations);
       }
     }
+    return () => window.removeEventListener('hashchange', importFromHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveLocations = (newLocations: LocationData[]) => {
-    // Always keep built-in ones
-    const builtIns = defaultLocations.filter(d => !newLocations.find(n => n.id === d.id));
-    const merged = [...builtIns, ...newLocations];
+    const merged = mergeWithBuiltIns(newLocations);
     setLocations(merged);
-    localStorage.setItem('cleaning-locations', JSON.stringify(merged));
+    localStorage.setItem(LOCATIONS_KEY, JSON.stringify(merged));
     if (!merged.find(l => l.id === selectedLocationId)) {
       setSelectedLocationId('kokkola');
     }
@@ -110,7 +135,14 @@ const CleaningCalculator = () => {
 
   const saveServices = (newServices: ServiceData[]) => {
     setServices(newServices);
-    localStorage.setItem('cleaning-services', JSON.stringify(newServices));
+    localStorage.setItem(SERVICES_KEY, JSON.stringify(newServices));
+  };
+
+  /** Tuo hinnaston tiedostosta tai jakolinkistä ja tallentaa sen tälle koneelle. */
+  const applyImport = (data: PriceListExport) => {
+    saveServices(data.services);
+    saveLocations(data.locations);
+    setSelectedService(null);
   };
 
   const formatCurrency = (amount: number) => {
@@ -251,6 +283,12 @@ const CleaningCalculator = () => {
               Asetukset
             </Button>
           </div>
+        </div>
+
+        {/* Hinnaston siirto koneelta toiselle */}
+        <div className="flex justify-between items-center gap-4 flex-wrap text-sm text-muted-foreground">
+          <span>Hinnasto tallentuu tähän selaimeen. Siirrä se toiselle koneelle tiedostona tai jakolinkillä.</span>
+          <PriceListSync services={services} locations={locations} onImport={applyImport} />
         </div>
 
         {/* Service Selection */}
